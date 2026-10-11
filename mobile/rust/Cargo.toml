@@ -16,5 +16,10 @@ exam-infrastructure = { path = "../../crates/exam_infrastructure" }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 rust_xlsxwriter = "0.99.1"
 
+# libc 0.2.190 no longer exposes the `_dyld_*` functions on iOS, which breaks `backtrace` 0.3.76
+# (pulled in by flutter_rust_bridge). Remove the pin once a fixed libc or backtrace is released.
+[target.'cfg(target_os = "ios")'.dependencies]
+libc = "=0.2.189"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
