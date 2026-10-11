@@ -1,0 +1,41 @@
+{
+  "generator_version": "1.0.0",
+  "template_id": "inonu-final-a",
+  "template_sha256": "c908beb5efc00fd2ebc1325cb8e31a38733f4df13e4fec875cc20fb82f1a3995",
+  "seed": 900,
+  "count": 3,
+  "max_scores": {
+    "S1": "20",
+    "S2": "30",
+    "S3": "25",
+    "S4": "25"
+  },
+  "fonts": [
+    "comic.ttf",
+    "comici.ttf",
+    "Gabriola.ttf",
+    "Inkfree.ttf",
+    "mvboli.ttf",
+    "segoepr.ttf",
+    "segoeprb.ttf",
+    "segoesc.ttf",
+    "segoescb.ttf"
+  ],
+  "digit_source": "mnist-test",
+  "photo": {
+    "long_side": 1200,
+    "degrade": true
+  },
+  "probabilities": {
+    "blank_score": 0.03,
+    "half_point": 0.15,
+    "comma_decimal": 0.5,
+    "corrected_score": 0.07,
+    "total_mismatch": 0.05,
+    "blank_total": 0.03,
+    "missing_name": 0.02,
+    "missing_number": 0.02,
+    "red_instructor_pen": 0.6,
+    "overflow": 0.1
+  }
+}

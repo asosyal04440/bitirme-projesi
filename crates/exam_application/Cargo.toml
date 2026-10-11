@@ -1,0 +1,13 @@
+[package]
+name = "exam-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+exam-core = { path = "../exam_core" }
+
+[lib]
+name = "exam_application"
+path = "src/lib.rs"
+

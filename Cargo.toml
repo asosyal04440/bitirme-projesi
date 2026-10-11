@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "crates/exam_core",
+    "crates/exam_application",
+    "crates/exam_infrastructure",
+    "crates/exam_import",
+    "crates/exam_cli",
+    "mobile/rust",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+

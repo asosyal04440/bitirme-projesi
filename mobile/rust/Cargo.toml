@@ -1,0 +1,20 @@
+[package]
+name = "rust_lib_sinav_okuyucu"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+anyhow = "1"
+exam-core = { path = "../../crates/exam_core" }
+exam-application = { path = "../../crates/exam_application" }
+exam-import = { path = "../../crates/exam_import" }
+exam-infrastructure = { path = "../../crates/exam_infrastructure" }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+rust_xlsxwriter = "0.99.1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

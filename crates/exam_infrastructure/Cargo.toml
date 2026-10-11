@@ -1,0 +1,19 @@
+[package]
+name = "exam-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+exam-core = { path = "../exam_core" }
+exam-application = { path = "../exam_application" }
+tract-onnx = "0.23.8"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.152"
+exam-import = { version = "0.1.0", path = "../exam_import" }
+
+[lib]
+name = "exam_infrastructure"
+path = "src/lib.rs"
+

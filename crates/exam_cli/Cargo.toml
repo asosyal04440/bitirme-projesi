@@ -1,0 +1,18 @@
+[package]
+name = "exam-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+exam-core = { path = "../exam_core" }
+exam-application = { path = "../exam_application" }
+exam-infrastructure = { path = "../exam_infrastructure" }
+serde_json = "1.0.152"
+sha2 = "0.11.0"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+exam-import = { version = "0.1.0", path = "../exam_import" }
+
+[[bin]]
+name = "exam-cli"
+path = "src/main.rs"

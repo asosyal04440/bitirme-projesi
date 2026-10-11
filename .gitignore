@@ -1,0 +1,21 @@
+# Build output
+/target/
+mobile/rust/target/
+
+# Generated datasets (reproducible from the generator seeds)
+/data/
+
+# The original exam file; the repository has an anonymized copy in tools/synthetic/templates/
+/*.docx
+
+# Python
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

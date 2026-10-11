@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "corpus_type": "synthetic",
+  "sessions": [
+    {
+      "session_id": "SYNTH-SESSION-001",
+      "pages": [
+        {
+          "page_index": 0,
+          "student": {"name": "Anonymous A", "number": "SYN-001"},
+          "questions": [
+            {"id": "Q3-b", "earned_score": "14.00", "maximum_score": "15"},
+            {"id": "Q4", "earned_score": "8", "maximum_score": "10"}
+          ],
+          "outcomes": [
+            {"id": "LO-A", "label": "Outcome A"},
+            {"id": "LO-B", "label": "Outcome B"}
+          ],
+          "mappings": [
+            {"question_id": "Q4", "outcome_id": "LO-B", "weight_basis_points": 10000}
+          ],
+          "regions": [
+            {"field_key": "student.number", "page_index": 0, "bbox": {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.05}},
+            {"field_key": "question:3-b.earned_score", "page_index": 0, "bbox": {"x": 0.4, "y": 0.4, "width": 0.1, "height": 0.05}}
+          ],
+          "review_required_fields": [
+            "question.earned_score",
+            "outcome.id",
+            "mapping",
+            "source_region"
+          ]
+        },
+        {
+          "page_index": 1,
+          "student": {"name": "Anonymous A", "number": "SYN-001"},
+          "questions": [
+            {"id": "Q5", "earned_score": "5", "maximum_score": "5"},
+            {"id": "Q6", "earned_score": "7", "maximum_score": "10"}
+          ],
+          "outcomes": [{"id": "LO-B", "label": "Outcome B"}],
+          "mappings": [
+            {"question_id": "Q3-b", "outcome_id": "LO-A", "weight_basis_points": 10000},
+            {"question_id": "Q5", "outcome_id": "LO-B", "weight_basis_points": 10000},
+            {"question_id": "Q6", "outcome_id": "LO-B", "weight_basis_points": 10000}
+          ],
+          "regions": [],
+          "review_required_fields": ["question.earned_score"]
+        }
+      ]
+    },
+    {
+      "session_id": "SYNTH-SESSION-002",
+      "pages": [
+        {
+          "page_index": 0,
+          "student": {"name": "Anonymous B", "number": "SYN-002"},
+          "questions": [{"id": "Q1", "earned_score": "10", "maximum_score": "10"}],
+          "outcomes": [{"id": "LO-X", "label": "Outcome X"}],
+          "mappings": [
+            {"question_id": "Q1", "outcome_id": "LO-X", "weight_basis_points": 10000}
+          ],
+          "regions": [
+            {"field_key": "student.number", "page_index": 0, "bbox": {"x": 0.15, "y": 0.12, "width": 0.25, "height": 0.05}}
+          ],
+          "review_required_fields": ["student.number", "question.earned_score"]
+        }
+      ]
+    }
+  ]
+}

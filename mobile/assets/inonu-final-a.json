@@ -1,0 +1,94 @@
+{
+  "template_version": 1,
+  "template_id": "inonu-final-a",
+  "source_pdf_sha256": "b85ef1935516df9ea5ca71a7a56a32db160ef352712c6d40e5863476ab3c0589",
+  "page_index": 0,
+  "render_dpi": 200,
+  "image": "inonu-final-a.png",
+  "fields": {
+    "student.name": {
+      "x": 0.578431,
+      "y": 0.110859,
+      "width": 0.231536,
+      "height": 0.024495
+    },
+    "student.number": {
+      "x": 0.578431,
+      "y": 0.135354,
+      "width": 0.231536,
+      "height": 0.017803
+    },
+    "declared_total": {
+      "x": 0.167484,
+      "y": 0.286616,
+      "width": 0.365359,
+      "height": 0.020202
+    }
+  },
+  "questions": [
+    {
+      "id": "S1",
+      "outcome_id": "PÇ2",
+      "mapping_cell": {
+        "x": 0.167484,
+        "y": 0.246212,
+        "width": 0.091503,
+        "height": 0.020202
+      },
+      "score_cell": {
+        "x": 0.167484,
+        "y": 0.266414,
+        "width": 0.091503,
+        "height": 0.020202
+      }
+    },
+    {
+      "id": "S2",
+      "outcome_id": "PÇ1",
+      "mapping_cell": {
+        "x": 0.258987,
+        "y": 0.246212,
+        "width": 0.091667,
+        "height": 0.020202
+      },
+      "score_cell": {
+        "x": 0.258987,
+        "y": 0.266414,
+        "width": 0.091667,
+        "height": 0.020202
+      }
+    },
+    {
+      "id": "S3",
+      "outcome_id": "PÇ3",
+      "mapping_cell": {
+        "x": 0.350654,
+        "y": 0.246212,
+        "width": 0.091667,
+        "height": 0.020202
+      },
+      "score_cell": {
+        "x": 0.350654,
+        "y": 0.266414,
+        "width": 0.091667,
+        "height": 0.020202
+      }
+    },
+    {
+      "id": "S4",
+      "outcome_id": "PÇ2",
+      "mapping_cell": {
+        "x": 0.44232,
+        "y": 0.246212,
+        "width": 0.090523,
+        "height": 0.020202
+      },
+      "score_cell": {
+        "x": 0.44232,
+        "y": 0.266414,
+        "width": 0.090523,
+        "height": 0.020202
+      }
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "model_name": "synthetic-fixture-model",
+    "model_revision": "synthetic-v1",
+    "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "artifact_bytes": 1,
+    "runtime_name": "synthetic-fixture-runtime",
+    "runtime_version": "1",
+    "backend": "cpu",
+    "thread_count": 1,
+    "temperature": 0,
+    "seed": 0,
+    "prompt_version": "synthetic-fixture-v1",
+    "timestamp": "2026-10-04T00:00:00Z",
+    "evaluator_version": "1.0.0"
+  },
+  "sessions": [
+    {
+      "session_id": "SYNTH-SESSION-001",
+      "pages": [
+        {
+          "page_index": 0,
+          "parse_status": "ok",
+          "parse_error": null,
+          "student": {"name": "Anonymous A", "number": "SYN-001"},
+          "questions": [
+            {"id": "Q3-b", "earned_score": "18", "maximum_score": "15"},
+            {"id": "Q4", "earned_score": "8.00", "maximum_score": "10"}
+          ],
+          "outcomes": [
+            {"id": "LO-A", "label": "Outcome A"},
+            {"id": "LO-B", "label": "Outcome B"},
+            {"id": "LO-UNKNOWN", "label": "Unknown outcome"}
+          ],
+          "mappings": [
+            {"question_id": "Q4", "outcome_id": "LO-B", "weight_basis_points": 10000},
+            {"question_id": "Q4", "outcome_id": "LO-UNKNOWN", "weight_basis_points": null}
+          ],
+          "regions": [
+            {"field_key": "student.number", "page_index": 0, "bbox": {"x": 0.1, "y": 0.1, "width": 0.2, "height": 0.05}},
+            {"field_key": "question:3-b.earned_score", "page_index": 4, "bbox": {"x": 0.95, "y": 0.4, "width": 0.2, "height": 0.05}}
+          ],
+          "confidence_by_field": {
+            "student.name": 0.99,
+            "student.number": 0.99,
+            "question:3-b.id": 0.98,
+            "question:3-b.earned_score": 0.91,
+            "question:3-b.maximum_score": 0.99,
+            "question:4.id": 0.99,
+            "question:4.earned_score": 0.99,
+            "question:4.maximum_score": 0.99,
+            "outcome:LO-A.id": 0.99,
+            "outcome:LO-A.label": 0.98,
+            "outcome:LO-B.id": 0.99,
+            "outcome:LO-B.label": 0.98,
+            "mapping:4->LO-B": 0.97,
+            "mapping:4->LO-B.allocation": 0.99
+          },
+          "review_issues": [
+            {"field_key": "question.earned_score", "reason": "score_exceeds_maximum"},
+            {"field_key": "outcome.id", "reason": "invalid_candidate"},
+            {"field_key": "mapping", "reason": "ambiguous_outcome_mapping"},
+            {"field_key": "source_region", "reason": "source_region_mismatch"}
+          ]
+        },
+        {
+          "page_index": 1,
+          "parse_status": "ok",
+          "parse_error": null,
+          "student": {"name": "Anonymous A", "number": "SYN-001"},
+          "questions": [
+            {"id": "Q5", "earned_score": "5.00", "maximum_score": "5"},
+            {"id": "Q6", "earned_score": null, "maximum_score": "10"}
+          ],
+          "outcomes": [{"id": "LO-B", "label": "Outcome B"}],
+          "mappings": [
+            {"question_id": "Q3-b", "outcome_id": "LO-A", "weight_basis_points": 10000},
+            {"question_id": "Q5", "outcome_id": "LO-B", "weight_basis_points": 10000},
+            {"question_id": "Q6", "outcome_id": "LO-B", "weight_basis_points": 10000}
+          ],
+          "regions": [],
+          "confidence_by_field": {
+            "student.name": 0.99,
+            "student.number": 0.99,
+            "question:5.id": 0.99,
+            "question:5.earned_score": 0.99,
+            "question:5.maximum_score": 0.99,
+            "question:6.id": 0.99,
+            "question:6.earned_score": 0.22,
+            "question:6.maximum_score": 0.99,
+            "outcome:LO-B.id": 0.99,
+            "outcome:LO-B.label": 0.99,
+            "mapping:3-b->LO-A": 0.97,
+            "mapping:3-b->LO-A.allocation": 0.99,
+            "mapping:5->LO-B": 0.99,
+            "mapping:5->LO-B.allocation": 0.99,
+            "mapping:6->LO-B": 0.99,
+            "mapping:6->LO-B.allocation": 0.99
+          },
+          "review_issues": [
+            {"field_key": "question.earned_score", "reason": "conflicting_question_score"}
+          ]
+        }
+      ]
+    },
+    {
+      "session_id": "SYNTH-SESSION-002",
+      "pages": [
+        {
+          "page_index": 0,
+          "parse_status": "ok",
+          "parse_error": null,
+          "student": {"name": "Anonymous B", "number": null},
+          "questions": [{"id": "Q1", "earned_score": "9.50", "maximum_score": "10"}],
+          "outcomes": [{"id": "LO-X", "label": "Outcome X"}],
+          "mappings": [
+            {"question_id": "Q1", "outcome_id": "LO-X", "weight_basis_points": 10000}
+          ],
+          "regions": [],
+          "confidence_by_field": {
+            "student.name": 0.99,
+            "student.number": 0.42,
+            "question:1.id": 0.99,
+            "question:1.earned_score": 0.42,
+            "question:1.maximum_score": 0.99,
+            "outcome:LO-X.id": 0.99,
+            "outcome:LO-X.label": 0.99,
+            "mapping:1->LO-X": 0.98,
+            "mapping:1->LO-X.allocation": 0.99
+          },
+          "review_issues": [
+            {"field_key": "student.number", "reason": "low_confidence"},
+            {"field_key": "question.earned_score", "reason": "low_confidence"}
+          ]
+        }
+      ]
+    }
+  ]
+}

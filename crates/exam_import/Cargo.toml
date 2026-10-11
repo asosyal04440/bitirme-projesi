@@ -1,0 +1,14 @@
+[package]
+name = "exam-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+exam-core = { path = "../exam_core" }
+quick-xml = "0.42.0"
+zip = { version = "9.0.1", default-features = false, features = ["deflate"] }
+
+[lib]
+name = "exam_import"
+path = "src/lib.rs"

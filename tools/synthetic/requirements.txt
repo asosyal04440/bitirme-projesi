@@ -1,0 +1,4 @@
+numpy>=1.26
+opencv-python>=4.8
+Pillow>=10.0
+PyMuPDF>=1.23  # extract_layout.py only

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "model_name": "synthetic-perfect-fixture",
+    "model_revision": "synthetic-v1",
+    "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "artifact_bytes": 1,
+    "runtime_name": "synthetic-fixture-runtime",
+    "runtime_version": "1",
+    "backend": "cpu",
+    "thread_count": 1,
+    "temperature": 0,
+    "seed": 0,
+    "prompt_version": "synthetic-perfect-v1",
+    "timestamp": "2026-10-04T00:00:00Z",
+    "evaluator_version": "1.0.0"
+  },
+  "sessions": [
+    {
+      "session_id": "SYNTH-PERFECT-SESSION",
+      "pages": [
+        {
+          "page_index": 0,
+          "parse_status": "ok",
+          "parse_error": null,
+          "student": {"name": "Anonymous Perfect", "number": "SYN-PERF-001"},
+          "questions": [{"id": "Q1", "earned_score": "9.50", "maximum_score": "10.00"}],
+          "outcomes": [{"id": "LO-A", "label": "Objective A"}],
+          "mappings": [
+            {"question_id": "Q1", "outcome_id": "LO-A", "weight_basis_points": 10000}
+          ],
+          "regions": [
+            {"field_key": "student.number", "page_index": 0, "bbox": {"x": 0.12, "y": 0.08, "width": 0.25, "height": 0.05}}
+          ],
+          "confidence_by_field": {
+            "student.name": 0.99,
+            "student.number": 0.99,
+            "question:1.id": 0.99,
+            "question:1.earned_score": 0.99,
+            "question:1.maximum_score": 0.99,
+            "outcome:LO-A.id": 0.99,
+            "outcome:LO-A.label": 0.99,
+            "mapping:1->LO-A": 0.99,
+            "mapping:1->LO-A.allocation": 0.99
+          },
+          "review_issues": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_type": "synthetic",
+  "sessions": [
+    {
+      "session_id": "SYNTH-PERFECT-SESSION",
+      "pages": [
+        {
+          "page_index": 0,
+          "student": {"name": "Anonymous Perfect", "number": "SYN-PERF-001"},
+          "questions": [{"id": "Q1", "earned_score": "9.5", "maximum_score": "10"}],
+          "outcomes": [{"id": "LO-A", "label": "Objective A"}],
+          "mappings": [
+            {"question_id": "Q1", "outcome_id": "LO-A", "weight_basis_points": 10000}
+          ],
+          "regions": [
+            {"field_key": "student.number", "page_index": 0, "bbox": {"x": 0.12, "y": 0.08, "width": 0.25, "height": 0.05}}
+          ],
+          "review_required_fields": []
+        }
+      ]
+    }
+  ]
+}
