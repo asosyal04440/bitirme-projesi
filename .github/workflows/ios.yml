@@ -69,3 +69,44 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag || github.ref_name }}
         run: gh release upload "$TAG" "${{ steps.package.outputs.file }}" --clobber
+
+  # Runs the on-device integration tests (Word import, photo reading, review, SQLite, Excel)
+  # on an iPhone simulator, so the iOS build is exercised and not only compiled.
+  simulator-test:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Rust targets
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add aarch64-apple-ios-sim
+
+      - name: Dependencies
+        run: |
+          flutter --disable-analytics
+          flutter pub get
+
+      - name: Boot simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          print(next(d['udid'] for runtime, items in sorted(devices.items(), reverse=True)
+                     if 'iOS' in runtime for d in items if d['name'].startswith('iPhone')))")
+          xcrun simctl boot "$udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Integration tests
+        run: flutter test integration_test -d "${{ steps.sim.outputs.udid }}"
