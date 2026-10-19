@@ -36,7 +36,7 @@ fn analyzer() -> TemplateSheetAnalyzer {
     let template =
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap();
-    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v1.onnx")).unwrap();
+    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap();
     let maximum_scores: BTreeMap<QuestionId, ScoreValue> =
         [("S1", "20"), ("S2", "30"), ("S3", "25"), ("S4", "25")]
             .into_iter()
@@ -51,7 +51,7 @@ fn analyzer() -> TemplateSheetAnalyzer {
         template,
         recognizer,
         maximum_scores,
-        ModelVersion::new("digit-crnn-v1", "1").unwrap(),
+        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
     )
     .unwrap()
 }
@@ -227,9 +227,9 @@ fn a_reader_built_from_the_word_file_finds_the_same_cells() {
     let analyzer = TemplateSheetAnalyzer::for_imported_exam(
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap(),
-        CellRecognizer::load(root().join("../../models/digit-crnn-v1.onnx")).unwrap(),
+        CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap(),
         &imported_exam(),
-        ModelVersion::new("digit-crnn-v1", "1").unwrap(),
+        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
     )
     .unwrap();
     for label in labels() {
@@ -272,9 +272,9 @@ fn an_incomplete_import_cannot_build_a_reader() {
     let result = TemplateSheetAnalyzer::for_imported_exam(
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap(),
-        CellRecognizer::load(root().join("../../models/digit-crnn-v1.onnx")).unwrap(),
+        CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap(),
         &missing_points,
-        ModelVersion::new("digit-crnn-v1", "1").unwrap(),
+        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
     );
     assert!(result.is_err());
 }

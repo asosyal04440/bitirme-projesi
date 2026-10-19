@@ -7,10 +7,10 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => RustLib.init());
 
-  testWidgets('the app starts on the exam list', (tester) async {
+  testWidgets('the app starts on the course list', (tester) async {
     await tester.pumpWidget(const SinavOkuyucuApp());
     await tester.pumpAndSettle();
-    expect(find.text('Sınavlar'), findsOneWidget);
-    expect(find.text('Word dosyasından sınav ekle'), findsOneWidget);
+    expect(find.text('Dersler'), findsOneWidget);
+    expect(find.text('Ders ekle'), findsOneWidget);
   });
 }

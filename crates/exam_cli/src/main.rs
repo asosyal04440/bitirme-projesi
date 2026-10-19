@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! exam-cli evaluate --template tools/synthetic/templates/inonu-final-a.json \
-//!     --model models/digit-crnn-v1.onnx --max-scores S1=20,S2=30,S3=25,S4=25 \
+//!     --model models/digit-crnn-v3.onnx --max-scores S1=20,S2=30,S3=25,S4=25 \
 //!     --roster-from-labels --out data/synthetic/e2e/report data/synthetic/e2e/shard-*
 //! ```
 

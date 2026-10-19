@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "benchmark"))
 
 from evaluate import _normalize_question_id  # noqa: E402
 
-from handwriting import DigitBank, FontLibrary, WriterStyle, render_text, sample_style, strike_through  # noqa: E402
+from handwriting import DigitBank, DigitSources, FontLibrary, WriterStyle, render_text, sample_style, strike_through  # noqa: E402
 from photo import PhotoOptions, composite_ink, photograph, project, rectify  # noqa: E402
 
 GENERATOR_VERSION = "1.0.0"
@@ -188,7 +188,7 @@ def fill_sheet(
     fonts: FontLibrary,
     rng: np.random.Generator,
     probs: Probabilities,
-    digits: DigitBank | None,
+    digits: DigitBank | DigitSources | None,
 ) -> tuple[np.ndarray, dict]:
     page = np.repeat(blank[..., None], 3, axis=2).astype(np.float32) / 255
     page_h, page_w = blank.shape
@@ -274,7 +274,7 @@ def generate(
     template_path: Path = DEFAULT_TEMPLATE,
     max_scores: dict[str, str] | None = None,
     font_dirs: list[Path] | None = None,
-    digits_dir: Path | None = None,
+    digits_dir: Path | list[Path] | None = None,
     digits_split: str = "train",
     photo_options: PhotoOptions = PhotoOptions(),
     probs: Probabilities | None = None,
@@ -292,7 +292,14 @@ def generate(
     fonts = FontLibrary(font_dirs)
     if not fonts.covering("0123456789.,"):
         raise RuntimeError("no handwriting fonts found; pass --font-dir")
-    digits = DigitBank(digits_dir, digits_split) if digits_dir else None
+    if isinstance(digits_dir, Path):
+        digits_dir = [digits_dir]
+    if not digits_dir:
+        digits = None
+    elif len(digits_dir) == 1:
+        digits = DigitBank(digits_dir[0], digits_split)
+    else:
+        digits = DigitSources(digits_dir, digits_split)
     probs = probs or Probabilities()
 
     output.mkdir(parents=True, exist_ok=True)
@@ -371,7 +378,7 @@ def generate(
         "count": count,
         "max_scores": {k: _decimal_text(v) for k, v in scores.items()},
         "fonts": [path.name for path in fonts.paths],
-        "digit_source": f"mnist-{digits.split}" if digits else "fonts",
+        "digit_source": f"{digits.name}-{digits.split}" if digits else "fonts",
         "photo": {"long_side": photo_options.long_side, "degrade": photo_options.degrade},
         "probabilities": probs.__dict__,
     }
@@ -396,7 +403,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
     parser.add_argument("--max-scores", type=_parse_scores, help="e.g. S1=20,S2=30,S3=25,S4=25")
     parser.add_argument("--font-dir", type=Path, action="append")
-    parser.add_argument("--mnist-dir", type=Path, help="MNIST/EMNIST IDX files for real handwritten digits")
+    parser.add_argument(
+        "--mnist-dir",
+        "--digits-dir",
+        type=Path,
+        nargs="+",
+        help="handwritten digit datasets (MNIST/EMNIST IDX or USPS-style parquet); several are mixed",
+    )
     parser.add_argument(
         "--mnist-split",
         choices=["train", "test"],

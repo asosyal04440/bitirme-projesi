@@ -39,7 +39,25 @@ void main() {
     expect(info.questions.map((q) => q.id), ['S1', 'S2', 'S3', 'S4']);
     expect(info.ready, isFalse); // S3 and S4 points are not in the file
 
+    for (final old in appState.courses.where((c) => c.code == 'BİLM374')) {
+      await appState.deleteCourse(old);
+    }
+    final course = await appState.createCourse(code: 'bilm 374');
+    expect(course.code, 'BİLM374');
+    final other = await appState.createCourse(code: 'TEST101');
+    await expectLater(
+      appState.createExam(
+        course: other,
+        docx: docx,
+        maximums: {'S3': '25', 'S4': '25'},
+        roster: const [],
+      ),
+      throwsA(isA<StateError>()), // the Word file belongs to BİLM374
+    );
+    await appState.deleteCourse(other);
+
     final exam = await appState.createExam(
+      course: course,
       docx: docx,
       maximums: {'S3': '25', 'S4': '25'},
       roster: const [
@@ -102,7 +120,11 @@ void main() {
 
     // Everything survives a restart of the app state.
     await appState.load();
-    final reloaded = appState.exams.firstWhere((e) => e.id == exam.id);
+    final reloadedCourse = appState.courses.singleWhere(
+      (c) => c.code == 'BİLM374',
+    );
+    expect(reloadedCourse.name, 'YAPAY ZEKA'); // taken from the Word file
+    final reloaded = reloadedCourse.exams.singleWhere((e) => e.id == exam.id);
     final reloadedSheet = reloaded.sheets.singleWhere(
       (s) => s.id == result.sheetId,
     );
@@ -132,6 +154,7 @@ void main() {
     );
     expect(excel.sublist(0, 2), [0x50, 0x4B]); // "PK": a zip/xlsx file
 
-    await appState.deleteExam(reloaded);
+    await appState.deleteCourse(reloadedCourse);
+    expect(appState.exams.any((e) => e.id == exam.id), isFalse);
   });
 }

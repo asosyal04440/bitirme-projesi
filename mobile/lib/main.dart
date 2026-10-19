@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'app_state.dart';
-import 'pages/exams_page.dart';
+import 'pages/courses_page.dart';
 import 'src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -35,7 +35,7 @@ class SinavOkuyucuApp extends StatelessWidget {
         brightness: Brightness.dark,
         colorScheme: const ShadSlateColorScheme.dark(),
       ),
-      home: const ExamsPage(),
+      home: const CoursesPage(),
     );
   }
 }

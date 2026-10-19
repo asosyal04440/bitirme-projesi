@@ -73,6 +73,8 @@ jobs:
   # Runs the on-device integration tests (Word import, photo reading, review, SQLite, Excel)
   # on an iPhone simulator, so the iOS build is exercised and not only compiled.
   simulator-test:
+    # Started by hand (Actions → iOS → Run workflow); releases only need the ipa.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     timeout-minutes: 60
     defaults:

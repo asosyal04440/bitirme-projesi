@@ -12,8 +12,14 @@ import 'exam_page.dart';
 
 /// Shows what was read from the Word file and asks only for what is missing.
 class ExamSetupPage extends StatefulWidget {
-  const ExamSetupPage({super.key, required this.docx, required this.info});
+  const ExamSetupPage({
+    super.key,
+    required this.course,
+    required this.docx,
+    required this.info,
+  });
 
+  final CourseEntry course;
   final Uint8List docx;
   final ExamInfo info;
 
@@ -26,6 +32,8 @@ class _ExamSetupPageState extends State<ExamSetupPage> {
   List<RosterStudent> _roster = const [];
   String? _rosterFile;
   bool _busy = false;
+
+  late final String? _mismatch = courseMismatch(widget.course, widget.info);
 
   bool get _complete => widget.info.questions.every(
     (q) =>
@@ -50,6 +58,7 @@ class _ExamSetupPageState extends State<ExamSetupPage> {
     setState(() => _busy = true);
     try {
       final exam = await appState.createExam(
+        course: widget.course,
         docx: widget.docx,
         maximums: {
           for (final entry in _maximums.entries)
@@ -83,7 +92,10 @@ class _ExamSetupPageState extends State<ExamSetupPage> {
       appBar: AppBar(
         backgroundColor: theme.colorScheme.background,
         surfaceTintColor: Colors.transparent,
-        title: Text('Yeni sınav', style: theme.textTheme.large),
+        title: Text(
+          '${widget.course.code} · yeni sınav',
+          style: theme.textTheme.large,
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -103,6 +115,16 @@ class _ExamSetupPageState extends State<ExamSetupPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (_mismatch != null) ...[
+            ShadAlert.destructive(
+              icon: const Icon(LucideIcons.circleAlert, size: 16),
+              title: Text(_mismatch),
+              description: const Text(
+                'Doğru dersin sayfasından ekleyin veya doğru Word dosyasını seçin.',
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           for (final warning in info.warnings) ...[
             ShadAlert(
               icon: const Icon(LucideIcons.triangleAlert, size: 16),
@@ -139,11 +161,11 @@ class _ExamSetupPageState extends State<ExamSetupPage> {
           const SizedBox(height: 24),
           ShadButton(
             width: double.infinity,
-            enabled: _complete && !_busy,
+            enabled: _mismatch == null && _complete && !_busy,
             onPressed: _create,
             child: Text(_busy ? 'Hazırlanıyor…' : 'Sınavı oluştur'),
           ),
-          if (!_complete)
+          if (_mismatch == null && !_complete)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(

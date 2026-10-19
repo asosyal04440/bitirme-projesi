@@ -6,8 +6,8 @@ bytes (no image decoder needed in Rust tests) and records what the Python
 reference produces for them with the exported ONNX model (expected.tsv):
 preprocessed tensor width and sum, decoded text and confidence.
 
-    python tools/recognizer/export_fixtures.py --model models/digit-crnn-v1.onnx \
-        --data data/synthetic/eval/shard-2 --out crates/exam_infrastructure/tests/fixtures/recognizer
+    python tools/recognizer/export_fixtures.py --model models/digit-crnn-v3.onnx \
+        --data data/synthetic/eval-v2/shard-2 --out crates/exam_infrastructure/tests/fixtures/recognizer
 """
 
 from __future__ import annotations

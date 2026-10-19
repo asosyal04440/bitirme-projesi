@@ -1,0 +1,70 @@
+{
+  "model": "digit-crnn-v1.pt",
+  "corpus": "CVL Digit Strings eval (real handwriting)",
+  "count": 4687,
+  "writers": 181,
+  "excluded_writers": 127,
+  "exact_match": 0.2861,
+  "character_error_rate": 0.2024,
+  "exact_match_by_length": {
+    "5": 0.444,
+    "6": 0.2785,
+    "7": 0.2365
+  },
+  "confidence": [
+    {
+      "threshold": 0.5,
+      "coverage": 0.6296,
+      "accepted_exact_match": 0.3504,
+      "accepted_errors": 1917
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.4124,
+      "accepted_exact_match": 0.4009,
+      "accepted_errors": 1158
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.2618,
+      "accepted_exact_match": 0.4377,
+      "accepted_errors": 690
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.1406,
+      "accepted_exact_match": 0.5144,
+      "accepted_errors": 320
+    },
+    {
+      "threshold": 0.85,
+      "coverage": 0.0979,
+      "accepted_exact_match": 0.5556,
+      "accepted_errors": 204
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.0542,
+      "accepted_exact_match": 0.6181,
+      "accepted_errors": 97
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 0.0194,
+      "accepted_exact_match": 0.6593,
+      "accepted_errors": 31
+    },
+    {
+      "threshold": 0.98,
+      "coverage": 0.0055,
+      "accepted_exact_match": 0.6923,
+      "accepted_errors": 8
+    },
+    {
+      "threshold": 0.99,
+      "coverage": 0.0021,
+      "accepted_exact_match": 0.9,
+      "accepted_errors": 1
+    }
+  ]
+}

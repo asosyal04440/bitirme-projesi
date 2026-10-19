@@ -36,13 +36,6 @@ class _ExamPageState extends State<ExamPage> {
     await _read(await photo.readAsBytes());
   }
 
-  /// The bundled synthetic sample photo, for trying the app without paper.
-  Future<void> _scanSample() async {
-    final bytes = (await rootBundle.load('assets/dev/ornek-kagit.jpg')).buffer
-        .asUint8List();
-    await _read(bytes);
-  }
-
   Future<void> _read(Uint8List photo) async {
     if (!mounted) return;
     setState(() => _reading = true);
@@ -125,6 +118,32 @@ class _ExamPageState extends State<ExamPage> {
     }
   }
 
+  Future<void> _delete() async {
+    final exam = widget.exam;
+    final yes = await showShadDialog<bool>(
+      context: context,
+      builder: (context) => ShadDialog.alert(
+        title: Text('${exam.label} silinsin mi?'),
+        description: Text(
+          'Sınavın ${exam.sheets.length} kâğıdı ve fotoğraf parçaları da silinir.',
+        ),
+        actions: [
+          ShadButton.outline(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          ShadButton.destructive(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    await appState.deleteExam(exam);
+    if (mounted) Navigator.of(context).pop();
+  }
+
   void _toast(String title, String description) {
     if (!mounted) return;
     ShadToaster.of(context).show(
@@ -141,8 +160,15 @@ class _ExamPageState extends State<ExamPage> {
       appBar: AppBar(
         backgroundColor: theme.colorScheme.background,
         surfaceTintColor: Colors.transparent,
-        title: Text(exam.title, style: theme.textTheme.large),
+        title: Text(
+          '${exam.info.courseCode ?? exam.title} · ${exam.label}',
+          style: theme.textTheme.large,
+        ),
         actions: [
+          ShadIconButton.ghost(
+            icon: const Icon(LucideIcons.trash2, size: 18),
+            onPressed: _delete,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ShadButton.outline(
@@ -171,7 +197,6 @@ class _ExamPageState extends State<ExamPage> {
                     exam: exam,
                     reading: _reading,
                     onScan: _scan,
-                    onSample: _scanSample,
                   ),
                   child: const Text('Kâğıtlar'),
                 ),
@@ -194,13 +219,11 @@ class _SheetsTab extends StatelessWidget {
     required this.exam,
     required this.reading,
     required this.onScan,
-    required this.onSample,
   });
 
   final ExamEntry exam;
   final bool reading;
   final void Function(ImageSource) onScan;
-  final VoidCallback onSample;
 
   @override
   Widget build(BuildContext context) {
@@ -230,11 +253,6 @@ class _SheetsTab extends StatelessWidget {
               ),
             ),
           ],
-        ),
-        ShadButton.ghost(
-          enabled: !reading,
-          onPressed: onSample,
-          child: const Text('Örnek kâğıtla dene'),
         ),
         if (reading) ...[
           const SizedBox(height: 8),

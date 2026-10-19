@@ -16,6 +16,13 @@ void main() {
     expect(roster.first.name, 'Ayşe Yılmaz');
   });
 
+  test('course codes ignore spaces and case, with Turkish letters', () {
+    expect(normalizeCourseCode(' bilm 374 '), 'BİLM374');
+    expect(normalizeCourseCode('BİLM374'), 'BİLM374');
+    expect(normalizeCourseCode('ısl101'), 'ISL101');
+    expect(normalizeCourseCode('   '), '');
+  });
+
   test('review issues are explained in Turkish', () {
     expect(
       reviewText(

@@ -168,7 +168,7 @@ impl ExamReader {
             template,
             recognizer,
             &imported,
-            ModelVersion::new("digit-crnn-v1", "1").map_err(|e| anyhow!("{e}"))?,
+            ModelVersion::new("digit-crnn-v3", "3").map_err(|e| anyhow!("{e}"))?,
         )
         .map_err(|e| anyhow!("{e}"))?;
         let roster = if roster.is_empty() {
@@ -547,7 +547,7 @@ mod tests {
         let reader = ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v1.onnx"),
+            read("models/digit-crnn-v3.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             vec![
                 MaximumScore {
@@ -591,7 +591,7 @@ mod tests {
         ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v1.onnx"),
+            read("models/digit-crnn-v3.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             vec![
                 MaximumScore {
@@ -742,7 +742,7 @@ mod tests {
         let result = ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v1.onnx"),
+            read("models/digit-crnn-v3.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             Vec::new(),
             Vec::new(),

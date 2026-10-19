@@ -4,7 +4,7 @@
     python tools/recognizer/train.py \
         --train data/synthetic/train/shard-* \
         --validation data/synthetic/eval/shard-1 --test data/synthetic/eval/shard-2 \
-        --out models --name digit-crnn-v1
+        --out models --name digit-crnn-v3
 
 The validation split picks the best epoch and the review threshold; the test
 split is only scored once at the end with that threshold, so the reported
@@ -78,6 +78,16 @@ def load_samples(directories: list[Path]) -> list[Sample]:
     return samples
 
 
+def load_real_strings(directories: list[Path]) -> list[Sample]:
+    """Scanned real digit strings named `<digits>-*.png` (e.g. CVL), read as numbers."""
+    return [
+        Sample(path, "number", path.name.split("-")[0], False, False)
+        for directory in directories
+        for path in sorted(directory.glob("*.png"))
+        if path.name.split("-")[0].isdigit()
+    ]
+
+
 def read_rgb(path: Path) -> np.ndarray:
     image = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if image is None:
@@ -138,16 +148,41 @@ def collate(batch: list[Sample], rng: random.Random) -> tuple[torch.Tensor, torc
     return images, flat, lengths
 
 
+class BatchDataset(torch.utils.data.Dataset):
+    """Pre-grouped batches, read and augmented in DataLoader worker processes."""
+
+    def __init__(self, groups: list[list[Sample]], seed: int) -> None:
+        self.groups = groups
+        self.seed = seed
+
+    def __len__(self) -> int:
+        return len(self.groups)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return collate(self.groups[index], random.Random(self.seed * 1_000_003 + index))
+
+
+def _single_threaded_worker(_: int) -> None:
+    """Each worker uses one core; many workers in parallel beat threads fighting."""
+    cv2.setNumThreads(1)
+    torch.set_num_threads(1)
+
+
+def model_device(model: nn.Module) -> torch.device:
+    return next(model.parameters()).device
+
+
 @torch.no_grad()
 def predict(model: nn.Module, samples: list[Sample], batch_size: int = 128) -> list[tuple[str, float]]:
     """Decodes every sample over its own frames only (padding is ignored)."""
     model.eval()
+    device = model_device(model)
     results: list[tuple[str, float]] = [("", 0.0)] * len(samples)
     order = sorted(range(len(samples)), key=lambda i: samples[i].kind)  # similar widths together
     for start in range(0, len(order), batch_size):
         chunk = order[start : start + batch_size]
         tensors = [preprocess(read_rgb(samples[i].path)) for i in chunk]
-        probabilities = model(stack(tensors)).softmax(dim=2).numpy()
+        probabilities = model(stack(tensors).to(device)).softmax(dim=2).cpu().numpy()
         for index, tensor, matrix in zip(chunk, tensors, probabilities):
             results[index] = decode(matrix[: tensor.shape[2] // 4], FIELD_ALPHABETS[samples[index].kind])
     return results
@@ -210,7 +245,7 @@ def choose_threshold(curve: list[dict], target: float, minimum_accepted: int, to
 
 
 def export_onnx(model: DigitCRNN, path: Path) -> None:
-    exported = ExportedRecognizer(model).eval()
+    exported = ExportedRecognizer(model).cpu().eval()
     dummy = torch.zeros(1, 3, 32, 128)
     torch.onnx.export(
         exported,
@@ -229,13 +264,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--train", nargs="+", required=True)
     parser.add_argument("--validation", nargs="+", required=True)
     parser.add_argument("--test", nargs="+", required=True)
+    parser.add_argument("--real-strings", nargs="*", default=[], help="real digit-string images added to training")
+    parser.add_argument("--real-repeat", type=int, default=1, help="times each real string is used per epoch")
     parser.add_argument("--out", type=Path, default=Path("models"))
-    parser.add_argument("--name", default="digit-crnn-v1")
+    parser.add_argument("--name", default="digit-crnn-v3")
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=2e-3)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--threads", type=int, default=16)
+    parser.add_argument("--device", default="auto", help="auto (CUDA when available), cuda or cpu")
+    parser.add_argument("--workers", type=int, default=6, help="processes that read and augment crops")
     parser.add_argument("--target-accuracy", type=float, default=0.99, help="accuracy required for auto-accepted fields")
     parser.add_argument("--min-accepted", type=int, default=100)
     parser.add_argument("--evaluate-only", action="store_true", help="re-score and re-export the saved checkpoint")
@@ -243,12 +282,17 @@ def main(argv: list[str] | None = None) -> int:
 
     expand = lambda patterns: sorted({Path(p) for pattern in patterns for p in glob.glob(pattern)})  # noqa: E731
     train, validation, test = (load_samples(expand(p)) for p in (args.train, args.validation, args.test))
-    print(f"train {len(train)}  validation {len(validation)}  test {len(test)} crops", flush=True)
+    real = load_real_strings(expand(args.real_strings))
+    train += real * args.real_repeat
+    print(f"train {len(train)} ({len(real)} real strings)  validation {len(validation)}  test {len(test)} crops", flush=True)
 
     torch.manual_seed(args.seed)
     torch.set_num_threads(args.threads)
     rng = random.Random(args.seed)
-    model = DigitCRNN()
+    device = torch.device("cuda" if args.device == "auto" and torch.cuda.is_available() else
+                          "cpu" if args.device == "auto" else args.device)
+    print(f"device {device}" + (f" ({torch.cuda.get_device_name(device)})" if device.type == "cuda" else ""), flush=True)
+    model = DigitCRNN().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * len(batches(train, args.batch_size, random.Random(0), shuffle=False))
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, total_steps=steps, pct_start=0.15)
@@ -263,10 +307,17 @@ def main(argv: list[str] | None = None) -> int:
     for epoch in range(1, 0 if args.evaluate_only else args.epochs + 1):
         model.train()
         started, losses = time.time(), []
-        for batch in batches(train, args.batch_size, rng, shuffle=True):
-            images, targets, lengths = collate(batch, rng)
+        loader = torch.utils.data.DataLoader(
+            BatchDataset(batches(train, args.batch_size, rng, shuffle=True), rng.getrandbits(31)),
+            batch_size=None,
+            num_workers=args.workers,
+            worker_init_fn=_single_threaded_worker,
+            pin_memory=device.type == "cuda",
+        )
+        for images, targets, lengths in loader:
+            images, targets, lengths = images.to(device), targets.to(device), lengths.to(device)
             log_probs = model(images).log_softmax(dim=2).permute(1, 0, 2)  # (time, batch, classes)
-            frames = torch.full((len(batch),), log_probs.shape[0], dtype=torch.long)
+            frames = torch.full((images.shape[0],), log_probs.shape[0], dtype=torch.long, device=device)
             loss = ctc(log_probs, targets, frames, lengths)
             optimizer.zero_grad()
             loss.backward()
@@ -282,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
             best = accuracy
             torch.save({"model_state": model.state_dict(), "epoch": epoch, "alphabet": ALPHABET}, checkpoint)
 
-    model.load_state_dict(torch.load(checkpoint, weights_only=True)["model_state"])
+    model.load_state_dict(torch.load(checkpoint, weights_only=True, map_location=device)["model_state"])
     validation_report = score(validation, predict(model, validation))
     threshold = choose_threshold(validation_report["confidence"], args.target_accuracy, args.min_accepted, len(validation))
     test_report = score(test, predict(model, test))
@@ -299,9 +350,17 @@ def main(argv: list[str] | None = None) -> int:
         "alphabet": ALPHABET,
         "data": {
             "train": [str(p) for p in expand(args.train)],
+            "real_strings": [str(p) for p in expand(args.real_strings)],
             "validation": [str(p) for p in expand(args.validation)],
             "test": [str(p) for p in expand(args.test)],
-            "corpus": "synthetic İnönü sheets with MNIST digits; NOT a real-sheet benchmark",
+            "corpus": "synthetic İnönü sheets; NOT a real-sheet benchmark",
+            "digit_sources": sorted(
+                {
+                    json.loads((p / "manifest.json").read_text(encoding="utf-8")).get("digit_source", "?")
+                    for p in expand(args.train + args.validation + args.test)
+                    if (p / "manifest.json").exists()
+                }
+            ),
         },
         "history": history,
         "selected_threshold": {

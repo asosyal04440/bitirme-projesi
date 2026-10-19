@@ -4,8 +4,8 @@ Two glyph sources are supported:
 - handwriting-style system fonts (always available, no download), with
   per-character rotation, scale, baseline and spacing jitter, slant, elastic
   distortion and stroke-width variation so the same font never repeats exactly;
-- optionally, real handwritten digits from an MNIST-format directory, used for
-  digits only (names and punctuation still come from fonts).
+- optionally, real handwritten digits from MNIST, EMNIST or USPS style
+  datasets, used for digits only (names and punctuation still come from fonts).
 """
 
 from __future__ import annotations
@@ -88,32 +88,52 @@ class FontLibrary:
 
 
 class DigitBank:
-    """Handwritten digits from MNIST-format IDX files (optionally gzipped).
+    """Handwritten digits from one dataset directory.
 
-    MNIST's train and test splits come from different writers, so training data
-    should use `split="train"` and evaluation data `split="test"`.
+    Supported layouts: MNIST or EMNIST IDX files (optionally gzipped; EMNIST
+    images are stored transposed), Hugging Face image parquet files named
+    `train*.parquet` / `test*.parquet` (e.g. USPS), and folders of scanned pen
+    digits named `<digit>-*.png` (CVL single digits: `train/` and `valid/`,
+    both used for the train split). Images are stored as white ink on black. The train and test splits of these datasets come from different
+    writers, so training data should use `split="train"` and evaluation data
+    `split="test"`.
     """
 
-    SPLIT_PREFIXES = {"train": "train", "test": "t10k"}
+    SPLIT_KEYS = {"train": ("train",), "test": ("t10k", "test")}
+    FOLDERS = {"train": ("train", "valid"), "test": ("test",)}
 
     def __init__(self, directory: Path, split: str = "train") -> None:
-        if split not in self.SPLIT_PREFIXES:
-            raise ValueError(f"unknown MNIST split {split!r}")
-        prefix = self.SPLIT_PREFIXES[split]
-        images = self._read(self._find(directory, prefix, "images"))
-        labels = self._read(self._find(directory, prefix, "labels"))
-        if images.shape[0] != labels.shape[0]:
-            raise ValueError("MNIST image and label counts differ")
+        if split not in self.SPLIT_KEYS:
+            raise ValueError(f"unknown digit split {split!r}")
+        folders = [directory / name for name in self.FOLDERS[split] if (directory / name).is_dir()]
+        parquet = self._matching(directory, split, ".parquet")
+        if folders:
+            images, labels = self._read_folders(folders)
+        elif parquet:
+            images, labels = self._read_parquet(parquet)
+        else:
+            idx = [p for p in self._matching(directory, split, "") if "idx" in p.name]
+            image_files = [p for p in idx if "images" in p.name]
+            label_files = [p for p in idx if "labels" in p.name]
+            if not image_files or not label_files:
+                raise FileNotFoundError(f"no {split} digit files in {directory}")
+            images, labels = self._read(image_files[0]), self._read(label_files[0])
+            if "emnist" in image_files[0].name:
+                images = images.transpose(0, 2, 1)
+        if len(images) != labels.shape[0]:
+            raise ValueError("digit image and label counts differ")
+        self.name = directory.name
         self.split = split
         self.images = images
         self.by_digit = {d: np.flatnonzero(labels == d) for d in range(10)}
 
-    @staticmethod
-    def _find(directory: Path, prefix: str, kind: str) -> Path:
-        for path in sorted(directory.iterdir()):
-            if path.name.startswith(prefix) and kind in path.name and "idx" in path.name:
-                return path
-        raise FileNotFoundError(f"no MNIST {prefix} {kind} file in {directory}")
+    @classmethod
+    def _matching(cls, directory: Path, split: str, suffix: str) -> list[Path]:
+        return [
+            path
+            for path in sorted(directory.iterdir())
+            if path.name.endswith(suffix) and any(key in path.name for key in cls.SPLIT_KEYS[split])
+        ]
 
     @staticmethod
     def _read(path: Path) -> np.ndarray:
@@ -123,10 +143,55 @@ class DigitBank:
         shape = (count, *struct.unpack(f">{dims - 1}I", data[8 : 4 + 4 * dims]))
         return np.frombuffer(data, dtype=np.uint8, offset=4 + 4 * dims).reshape(shape)
 
+    @staticmethod
+    def _read_parquet(paths: list[Path]) -> tuple[np.ndarray, np.ndarray]:
+        import io
+
+        import pyarrow.parquet as pq
+
+        images, labels = [], []
+        for path in paths:
+            table = pq.read_table(path, columns=["image", "label"]).to_pylist()
+            for row in table:
+                images.append(np.asarray(Image.open(io.BytesIO(row["image"]["bytes"])).convert("L")))
+                labels.append(row["label"])
+        size = max(max(i.shape) for i in images)
+        padded = np.zeros((len(images), size, size), np.uint8)
+        for k, image in enumerate(images):
+            padded[k, : image.shape[0], : image.shape[1]] = image
+        return padded, np.asarray(labels)
+
+    @staticmethod
+    def _read_folders(folders: list[Path]) -> tuple[list[np.ndarray], np.ndarray]:
+        """Scanned dark ink on light paper, turned into an ink mask."""
+        images, labels = [], []
+        for folder in folders:
+            for path in sorted(folder.glob("*.png")):
+                gray = np.asarray(Image.open(path).convert("L"), dtype=np.float32)
+                paper = np.percentile(gray, 90)
+                ink = np.clip((paper - gray) / max(paper - gray.min(), 1.0), 0, 1)
+                images.append((ink * 255).astype(np.uint8))
+                labels.append(int(path.name.split("-")[0]))
+        return images, np.asarray(labels)
+
     def sample(self, digit: int, rng: np.random.Generator) -> np.ndarray:
         image = self.images[rng.choice(self.by_digit[digit])].astype(np.float32) / 255
         ys, xs = np.nonzero(image > 0.1)
         return image[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
+
+
+class DigitSources:
+    """Several digit datasets; each digit is drawn from a randomly chosen one."""
+
+    def __init__(self, directories: list[Path], split: str = "train") -> None:
+        if not directories:
+            raise ValueError("no digit directories")
+        self.banks = [DigitBank(directory, split) for directory in directories]
+        self.split = split
+        self.name = "+".join(bank.name for bank in self.banks)
+
+    def sample(self, digit: int, rng: np.random.Generator) -> np.ndarray:
+        return self.banks[rng.integers(len(self.banks))].sample(digit, rng)
 
 
 @dataclass(frozen=True)
@@ -190,7 +255,7 @@ def render_text(
     style: WriterStyle,
     height: int,
     rng: np.random.Generator,
-    digits: DigitBank | None = None,
+    digits: DigitBank | DigitSources | None = None,
 ) -> np.ndarray:
     """Returns a float32 alpha mask (1 = full ink) whose cap height is about `height` px."""
 

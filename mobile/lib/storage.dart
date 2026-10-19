@@ -5,10 +5,26 @@ import 'package:sqflite/sqflite.dart';
 
 import 'src/rust/api/reader.dart';
 
+/// A course the instructor teaches; its exams and sheets are kept under it.
+class StoredCourse {
+  StoredCourse({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String code;
+  final String? name;
+  final DateTime createdAt;
+}
+
 /// An exam as stored: the Word file and what the instructor added to it.
 class StoredExam {
   StoredExam({
     required this.id,
+    required this.courseId,
     required this.createdAt,
     required this.docx,
     required this.maximums,
@@ -16,6 +32,10 @@ class StoredExam {
   });
 
   final String id;
+
+  /// Null only for exams saved before courses existed; [AppState.load]
+  /// assigns them to a course.
+  final String? courseId;
   final DateTime createdAt;
   final Uint8List docx;
   final Map<String, String> maximums;
@@ -68,12 +88,23 @@ class Storage {
     final directory = await getDatabasesPath();
     final db = await openDatabase(
       '$directory/sinav_okuyucu.db',
-      version: 1,
+      version: 2,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onUpgrade: (db, from, _) async {
+        if (from < 2) {
+          await _createCourses(db);
+          await db.execute(
+            'ALTER TABLE exams ADD COLUMN course_id TEXT '
+            'REFERENCES courses(id) ON DELETE CASCADE',
+          );
+        }
+      },
       onCreate: (db, _) async {
+        await _createCourses(db);
         await db.execute('''
           CREATE TABLE exams (
             id TEXT PRIMARY KEY,
+            course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
             created_at INTEGER NOT NULL,
             docx BLOB NOT NULL,
             maximums TEXT NOT NULL,
@@ -111,8 +142,52 @@ class Storage {
     return Storage._(db);
   }
 
+  static Future<void> _createCourses(Database db) => db.execute('''
+    CREATE TABLE courses (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT,
+      created_at INTEGER NOT NULL
+    )''');
+
+  Future<void> insertCourse(StoredCourse course) => _db.insert('courses', {
+    'id': course.id,
+    'code': course.code,
+    'name': course.name,
+    'created_at': course.createdAt.millisecondsSinceEpoch,
+  });
+
+  Future<void> renameCourse(String id, String? name) =>
+      _db.update('courses', {'name': name}, where: 'id = ?', whereArgs: [id]);
+
+  Future<List<StoredCourse>> courses() async {
+    final rows = await _db.query('courses', orderBy: 'code');
+    return [
+      for (final row in rows)
+        StoredCourse(
+          id: row['id']! as String,
+          code: row['code']! as String,
+          name: row['name'] as String?,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(
+            row['created_at']! as int,
+          ),
+        ),
+    ];
+  }
+
+  Future<void> deleteCourse(String id) =>
+      _db.delete('courses', where: 'id = ?', whereArgs: [id]);
+
+  Future<void> moveExam(String examId, String courseId) => _db.update(
+    'exams',
+    {'course_id': courseId},
+    where: 'id = ?',
+    whereArgs: [examId],
+  );
+
   Future<void> insertExam(StoredExam exam) => _db.insert('exams', {
     'id': exam.id,
+    'course_id': exam.courseId,
     'created_at': exam.createdAt.millisecondsSinceEpoch,
     'docx': exam.docx,
     'maximums': jsonEncode(exam.maximums),
@@ -127,6 +202,7 @@ class Storage {
       for (final row in rows)
         StoredExam(
           id: row['id']! as String,
+          courseId: row['course_id'] as String?,
           createdAt: DateTime.fromMillisecondsSinceEpoch(
             row['created_at']! as int,
           ),
