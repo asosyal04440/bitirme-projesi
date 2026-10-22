@@ -93,11 +93,12 @@ impl ExamDocumentAnalyzer for Precomputed {
 
 #[flutter_rust_bridge::frb(opaque)]
 pub struct ExamReader {
-    analyzer: TemplateSheetAnalyzer,
+    pub(crate) analyzer: TemplateSheetAnalyzer,
     imported: ImportedExam,
     exam: Exam,
     roster: Option<StudentRoster>,
     sessions: Mutex<InMemorySessionRepository>,
+    pub(crate) live: Mutex<crate::live::LiveState>,
 }
 
 fn reason_key(reason: &ReviewReason) -> &'static str {
@@ -168,7 +169,7 @@ impl ExamReader {
             template,
             recognizer,
             &imported,
-            ModelVersion::new("digit-crnn-v3", "3").map_err(|e| anyhow!("{e}"))?,
+            ModelVersion::new("digit-crnn-v4", "4").map_err(|e| anyhow!("{e}"))?,
         )
         .map_err(|e| anyhow!("{e}"))?;
         let roster = if roster.is_empty() {
@@ -195,6 +196,7 @@ impl ExamReader {
             exam,
             roster,
             sessions: Mutex::new(InMemorySessionRepository::default()),
+            live: Mutex::new(crate::live::LiveState::default()),
         })
     }
 
@@ -210,7 +212,20 @@ impl ExamReader {
             .context("fotoğraf okunamadı")?
             .to_rgb8();
         let sheet = self.analyzer.read_sheet(&rgb).map_err(|e| anyhow!("{e}"))?;
-        let extraction = self.analyzer.extraction(0, &sheet);
+        self.sheet_result(sheet_id, &rgb, &sheet, true)
+    }
+
+    /// The result for a sheet read from `rgb` (a photo or a camera frame),
+    /// validated by the application. Cell crops are cut out only when
+    /// `with_crops` is set, since encoding them takes time.
+    pub(crate) fn sheet_result(
+        &self,
+        sheet_id: String,
+        rgb: &image::RgbImage,
+        sheet: &SheetReading,
+        with_crops: bool,
+    ) -> anyhow::Result<SheetResult> {
+        let extraction = self.analyzer.extraction(0, sheet);
 
         let mut cells = Vec::new();
         for field in &sheet.fields {
@@ -253,10 +268,35 @@ impl ExamReader {
                 confidence: reading.confidence,
                 accepted: false,
                 region,
-                crop_png: png(&warp_quad(&rgb, &field.quad, width, 96))?,
+                crop_png: if with_crops {
+                    png(&warp_quad(rgb, &field.quad, width, 96))?
+                } else {
+                    Vec::new()
+                },
             });
         }
         self.evaluate(sheet_id, sheet.page_found, &extraction, cells)
+    }
+
+    /// Reads one frame of the live camera preview. Call it for frame after
+    /// frame (skipping frames while a call is running): it follows the sheet,
+    /// combines the readings of consecutive frames and reports `Saved` with the
+    /// result once, as soon as the sheet is read reliably. The next sheet is
+    /// read when it comes into view.
+    pub fn scan_frame(
+        &self,
+        frame: crate::api::camera::CameraFrame,
+    ) -> anyhow::Result<crate::api::camera::ScanUpdate> {
+        crate::live::scan(self, frame)
+    }
+
+    /// Forgets the sheet being scanned and the last saved one, e.g. when the
+    /// scanning screen is opened again.
+    #[flutter_rust_bridge::frb(sync)]
+    pub fn reset_scan(&self) {
+        if let Ok(mut state) = self.live.lock() {
+            *state = crate::live::LiveState::default();
+        }
     }
 
     /// Re-evaluates a sheet with the values the instructor checked or
@@ -547,7 +587,7 @@ mod tests {
         let reader = ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v3.onnx"),
+            read("models/digit-crnn-v4.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             vec![
                 MaximumScore {
@@ -591,7 +631,7 @@ mod tests {
         ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v3.onnx"),
+            read("models/digit-crnn-v4.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             vec![
                 MaximumScore {
@@ -742,7 +782,7 @@ mod tests {
         let result = ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
-            read("models/digit-crnn-v3.onnx"),
+            read("models/digit-crnn-v4.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             Vec::new(),
             Vec::new(),

@@ -43,6 +43,8 @@ dependencies:
   sqflite: ^2.4.4+1
   path_provider: ^2.1.6
   share_plus: ^13.3.1
+  camera: ^0.12.1
+  wakelock_plus: ^1.8.1
 
 dev_dependencies:
   flutter_test:
@@ -65,7 +67,7 @@ flutter:
   assets:
     - assets/inonu-final-a.json
     - assets/inonu-final-a.png
-    - assets/digit-crnn-v3.onnx
+    - assets/digit-crnn-v4.onnx
     # Synthetic sample sheet and its Word file, for on-device tests and demos.
     - assets/dev/
 

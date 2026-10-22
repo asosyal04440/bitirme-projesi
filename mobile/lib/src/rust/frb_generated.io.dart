@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/camera.dart';
 import 'api/exam.dart';
 import 'api/reader.dart';
 
@@ -54,6 +55,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  CameraFrame dco_decode_box_autoadd_camera_frame(dynamic raw);
+
+  @protected
+  SheetResult dco_decode_box_autoadd_sheet_result(dynamic raw);
+
+  @protected
+  CameraFrame dco_decode_camera_frame(dynamic raw);
+
+  @protected
   CellResult dco_decode_cell_result(dynamic raw);
 
   @protected
@@ -69,6 +79,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FieldValue dco_decode_field_value(dynamic raw);
 
   @protected
+  FrameFormat dco_decode_frame_format(dynamic raw);
+
+  @protected
+  FramePlane dco_decode_frame_plane(dynamic raw);
+
+  @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
   IssueResult dco_decode_issue_result(dynamic raw);
 
   @protected
@@ -79,6 +98,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FieldValue> dco_decode_list_field_value(dynamic raw);
+
+  @protected
+  List<FramePlane> dco_decode_list_frame_plane(dynamic raw);
 
   @protected
   List<IssueResult> dco_decode_list_issue_result(dynamic raw);
@@ -114,6 +136,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  SheetResult? dco_decode_opt_box_autoadd_sheet_result(dynamic raw);
+
+  @protected
   OutcomeResult dco_decode_outcome_result(dynamic raw);
 
   @protected
@@ -126,7 +151,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RosterStudent dco_decode_roster_student(dynamic raw);
 
   @protected
+  ScanState dco_decode_scan_state(dynamic raw);
+
+  @protected
+  ScanUpdate dco_decode_scan_update(dynamic raw);
+
+  @protected
   SheetResult dco_decode_sheet_result(dynamic raw);
+
+  @protected
+  int dco_decode_u_32(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -165,6 +199,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  CameraFrame sse_decode_box_autoadd_camera_frame(SseDeserializer deserializer);
+
+  @protected
+  SheetResult sse_decode_box_autoadd_sheet_result(SseDeserializer deserializer);
+
+  @protected
+  CameraFrame sse_decode_camera_frame(SseDeserializer deserializer);
+
+  @protected
   CellResult sse_decode_cell_result(SseDeserializer deserializer);
 
   @protected
@@ -180,6 +223,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FieldValue sse_decode_field_value(SseDeserializer deserializer);
 
   @protected
+  FrameFormat sse_decode_frame_format(SseDeserializer deserializer);
+
+  @protected
+  FramePlane sse_decode_frame_plane(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
   IssueResult sse_decode_issue_result(SseDeserializer deserializer);
 
   @protected
@@ -190,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FieldValue> sse_decode_list_field_value(SseDeserializer deserializer);
+
+  @protected
+  List<FramePlane> sse_decode_list_frame_plane(SseDeserializer deserializer);
 
   @protected
   List<IssueResult> sse_decode_list_issue_result(SseDeserializer deserializer);
@@ -233,6 +288,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  SheetResult? sse_decode_opt_box_autoadd_sheet_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OutcomeResult sse_decode_outcome_result(SseDeserializer deserializer);
 
   @protected
@@ -245,7 +305,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RosterStudent sse_decode_roster_student(SseDeserializer deserializer);
 
   @protected
+  ScanState sse_decode_scan_state(SseDeserializer deserializer);
+
+  @protected
+  ScanUpdate sse_decode_scan_update(SseDeserializer deserializer);
+
+  @protected
   SheetResult sse_decode_sheet_result(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -255,9 +324,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -293,6 +359,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_camera_frame(
+    CameraFrame self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sheet_result(
+    SheetResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_camera_frame(CameraFrame self, SseSerializer serializer);
+
+  @protected
   void sse_encode_cell_result(CellResult self, SseSerializer serializer);
 
   @protected
@@ -306,6 +387,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_field_value(FieldValue self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frame_format(FrameFormat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frame_plane(FramePlane self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_issue_result(IssueResult self, SseSerializer serializer);
@@ -322,6 +412,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_field_value(
     List<FieldValue> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_frame_plane(
+    List<FramePlane> self,
     SseSerializer serializer,
   );
 
@@ -383,6 +479,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_sheet_result(
+    SheetResult? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_outcome_result(OutcomeResult self, SseSerializer serializer);
 
   @protected
@@ -395,7 +497,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_roster_student(RosterStudent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_scan_state(ScanState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_scan_update(ScanUpdate self, SseSerializer serializer);
+
+  @protected
   void sse_encode_sheet_result(SheetResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
@@ -405,9 +516,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class

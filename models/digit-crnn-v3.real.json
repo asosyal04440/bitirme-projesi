@@ -4,67 +4,67 @@
   "count": 4687,
   "writers": 181,
   "excluded_writers": 127,
-  "exact_match": 0.831,
-  "character_error_rate": 0.0321,
+  "exact_match": 0.8065,
+  "character_error_rate": 0.037,
   "exact_match_by_length": {
-    "5": 0.8638,
-    "6": 0.8291,
-    "7": 0.8214
+    "5": 0.8377,
+    "6": 0.8035,
+    "7": 0.8
   },
   "confidence": [
     {
       "threshold": 0.5,
-      "coverage": 0.975,
-      "accepted_exact_match": 0.8433,
-      "accepted_errors": 716
+      "coverage": 0.9701,
+      "accepted_exact_match": 0.8216,
+      "accepted_errors": 811
     },
     {
       "threshold": 0.6,
-      "coverage": 0.8297,
-      "accepted_exact_match": 0.8668,
-      "accepted_errors": 518
+      "coverage": 0.8191,
+      "accepted_exact_match": 0.844,
+      "accepted_errors": 599
     },
     {
       "threshold": 0.7,
-      "coverage": 0.7017,
-      "accepted_exact_match": 0.8866,
-      "accepted_errors": 373
+      "coverage": 0.6802,
+      "accepted_exact_match": 0.8708,
+      "accepted_errors": 412
     },
     {
       "threshold": 0.8,
-      "coverage": 0.5737,
-      "accepted_exact_match": 0.9059,
-      "accepted_errors": 253
+      "coverage": 0.5473,
+      "accepted_exact_match": 0.8916,
+      "accepted_errors": 278
     },
     {
       "threshold": 0.85,
-      "coverage": 0.4995,
-      "accepted_exact_match": 0.9188,
-      "accepted_errors": 190
+      "coverage": 0.4713,
+      "accepted_exact_match": 0.904,
+      "accepted_errors": 212
     },
     {
       "threshold": 0.9,
-      "coverage": 0.4133,
-      "accepted_exact_match": 0.9313,
-      "accepted_errors": 133
+      "coverage": 0.3828,
+      "accepted_exact_match": 0.9214,
+      "accepted_errors": 141
     },
     {
       "threshold": 0.95,
-      "coverage": 0.3094,
-      "accepted_exact_match": 0.9421,
-      "accepted_errors": 84
+      "coverage": 0.2818,
+      "accepted_exact_match": 0.9372,
+      "accepted_errors": 83
     },
     {
       "threshold": 0.98,
-      "coverage": 0.2087,
-      "accepted_exact_match": 0.9652,
-      "accepted_errors": 34
+      "coverage": 0.1914,
+      "accepted_exact_match": 0.9554,
+      "accepted_errors": 40
     },
     {
       "threshold": 0.99,
-      "coverage": 0.1536,
-      "accepted_exact_match": 0.9681,
-      "accepted_errors": 23
+      "coverage": 0.1372,
+      "accepted_exact_match": 0.9611,
+      "accepted_errors": 25
     }
   ]
 }

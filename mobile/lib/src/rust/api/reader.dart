@@ -4,11 +4,12 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'camera.dart';
 import 'exam.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `verified`
+// These functions are ignored because they are not marked as `pub`: `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `sheet_result`, `verified`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Precomputed`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `analyze`
 
@@ -55,6 +56,17 @@ abstract class ExamReader implements RustOpaqueInterface {
     required String sheetId,
     required List<int> photo,
   });
+
+  /// Forgets the sheet being scanned and the last saved one, e.g. when the
+  /// scanning screen is opened again.
+  void resetScan();
+
+  /// Reads one frame of the live camera preview. Call it for frame after
+  /// frame (skipping frames while a call is running): it follows the sheet,
+  /// combines the readings of consecutive frames and reports `Saved` with the
+  /// result once, as soon as the sheet is read reliably. The next sheet is
+  /// read when it comes into view.
+  Future<ScanUpdate> scanFrame({required CameraFrame frame});
 }
 
 class CellResult {

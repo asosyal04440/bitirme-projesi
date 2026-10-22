@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1008502609;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1997804237;
 
 // Section: executor
 
@@ -313,6 +313,109 @@ fn wire__crate__api__reader__ExamReader_process_photo_impl(
         },
     )
 }
+fn wire__crate__api__reader__ExamReader_reset_scan_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ExamReader_reset_scan",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::reader::ExamReader::reset_scan(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__reader__ExamReader_scan_frame_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ExamReader_scan_frame",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_frame = <crate::api::camera::CameraFrame>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::reader::ExamReader::scan_frame(
+                            &*api_that_guard,
+                            api_frame,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__init_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -434,6 +537,24 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::camera::CameraFrame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_format = <crate::api::camera::FrameFormat>::sse_decode(deserializer);
+        let mut var_planes = <Vec<crate::api::camera::FramePlane>>::sse_decode(deserializer);
+        let mut var_rotation = <u32>::sse_decode(deserializer);
+        return crate::api::camera::CameraFrame {
+            width: var_width,
+            height: var_height,
+            format: var_format,
+            planes: var_planes,
+            rotation: var_rotation,
+        };
+    }
+}
+
 impl SseDecode for crate::api::reader::CellResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -516,6 +637,40 @@ impl SseDecode for crate::api::reader::FieldValue {
     }
 }
 
+impl SseDecode for crate::api::camera::FrameFormat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::camera::FrameFormat::Yuv420,
+            1 => crate::api::camera::FrameFormat::Bgra8888,
+            2 => crate::api::camera::FrameFormat::Rgba8888,
+            _ => unreachable!("Invalid variant for FrameFormat: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::camera::FramePlane {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_bytes = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_rowStride = <u32>::sse_decode(deserializer);
+        let mut var_pixelStride = <u32>::sse_decode(deserializer);
+        return crate::api::camera::FramePlane {
+            bytes: var_bytes,
+            row_stride: var_rowStride,
+            pixel_stride: var_pixelStride,
+        };
+    }
+}
+
+impl SseDecode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for crate::api::reader::IssueResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -561,6 +716,18 @@ impl SseDecode for Vec<crate::api::reader::FieldValue> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::reader::FieldValue>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::camera::FramePlane> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::camera::FramePlane>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -689,6 +856,17 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<crate::api::reader::SheetResult> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::reader::SheetResult>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::api::reader::OutcomeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -753,6 +931,40 @@ impl SseDecode for crate::api::reader::RosterStudent {
     }
 }
 
+impl SseDecode for crate::api::camera::ScanState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::camera::ScanState::Searching,
+            1 => crate::api::camera::ScanState::Reading,
+            2 => crate::api::camera::ScanState::Saved,
+            3 => crate::api::camera::ScanState::AlreadySaved,
+            _ => unreachable!("Invalid variant for ScanState: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::camera::ScanUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state = <crate::api::camera::ScanState>::sse_decode(deserializer);
+        let mut var_table = <Vec<f32>>::sse_decode(deserializer);
+        let mut var_sheet = <Option<crate::api::reader::SheetResult>>::sse_decode(deserializer);
+        let mut var_verified = <bool>::sse_decode(deserializer);
+        let mut var_frames = <u32>::sse_decode(deserializer);
+        let mut var_millis = <u32>::sse_decode(deserializer);
+        return crate::api::camera::ScanUpdate {
+            state: var_state,
+            table: var_table,
+            sheet: var_sheet,
+            verified: var_verified,
+            frames: var_frames,
+            millis: var_millis,
+        };
+    }
+}
+
 impl SseDecode for crate::api::reader::SheetResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -777,6 +989,13 @@ impl SseDecode for crate::api::reader::SheetResult {
     }
 }
 
+impl SseDecode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u32::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -793,13 +1012,6 @@ impl SseDecode for usize {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
-    }
-}
-
-impl SseDecode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
     }
 }
 
@@ -831,8 +1043,11 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
+        7 => {
+            wire__crate__api__reader__ExamReader_scan_frame_impl(port, ptr, rust_vec_len, data_len)
+        }
+        8 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -846,6 +1061,7 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => wire__crate__api__reader__ExamReader_exam_info_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__reader__ExamReader_reset_scan_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -867,6 +1083,30 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ExamReader>> for ExamReader {
     }
 }
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::camera::CameraFrame {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.format.into_into_dart().into_dart(),
+            self.planes.into_into_dart().into_dart(),
+            self.rotation.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::camera::CameraFrame
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::camera::CameraFrame>
+    for crate::api::camera::CameraFrame
+{
+    fn into_into_dart(self) -> crate::api::camera::CameraFrame {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::reader::CellResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -938,6 +1178,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::reader::FieldValue>
     for crate::api::reader::FieldValue
 {
     fn into_into_dart(self) -> crate::api::reader::FieldValue {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::camera::FrameFormat {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Yuv420 => 0.into_dart(),
+            Self::Bgra8888 => 1.into_dart(),
+            Self::Rgba8888 => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::camera::FrameFormat
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::camera::FrameFormat>
+    for crate::api::camera::FrameFormat
+{
+    fn into_into_dart(self) -> crate::api::camera::FrameFormat {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::camera::FramePlane {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.bytes.into_into_dart().into_dart(),
+            self.row_stride.into_into_dart().into_dart(),
+            self.pixel_stride.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::camera::FramePlane
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::camera::FramePlane>
+    for crate::api::camera::FramePlane
+{
+    fn into_into_dart(self) -> crate::api::camera::FramePlane {
         self
     }
 }
@@ -1077,6 +1361,51 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::reader::RosterStudent>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::camera::ScanState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Searching => 0.into_dart(),
+            Self::Reading => 1.into_dart(),
+            Self::Saved => 2.into_dart(),
+            Self::AlreadySaved => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::camera::ScanState {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::camera::ScanState>
+    for crate::api::camera::ScanState
+{
+    fn into_into_dart(self) -> crate::api::camera::ScanState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::camera::ScanUpdate {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.table.into_into_dart().into_dart(),
+            self.sheet.into_into_dart().into_dart(),
+            self.verified.into_into_dart().into_dart(),
+            self.frames.into_into_dart().into_dart(),
+            self.millis.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::camera::ScanUpdate
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::camera::ScanUpdate>
+    for crate::api::camera::ScanUpdate
+{
+    fn into_into_dart(self) -> crate::api::camera::ScanUpdate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::reader::SheetResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1143,6 +1472,17 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::camera::CameraFrame {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <crate::api::camera::FrameFormat>::sse_encode(self.format, serializer);
+        <Vec<crate::api::camera::FramePlane>>::sse_encode(self.planes, serializer);
+        <u32>::sse_encode(self.rotation, serializer);
+    }
+}
+
 impl SseEncode for crate::api::reader::CellResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1197,6 +1537,39 @@ impl SseEncode for crate::api::reader::FieldValue {
     }
 }
 
+impl SseEncode for crate::api::camera::FrameFormat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::camera::FrameFormat::Yuv420 => 0,
+                crate::api::camera::FrameFormat::Bgra8888 => 1,
+                crate::api::camera::FrameFormat::Rgba8888 => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::camera::FramePlane {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<u8>>::sse_encode(self.bytes, serializer);
+        <u32>::sse_encode(self.row_stride, serializer);
+        <u32>::sse_encode(self.pixel_stride, serializer);
+    }
+}
+
+impl SseEncode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for crate::api::reader::IssueResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1232,6 +1605,16 @@ impl SseEncode for Vec<crate::api::reader::FieldValue> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::reader::FieldValue>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::camera::FramePlane> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::camera::FramePlane>::sse_encode(item, serializer);
         }
     }
 }
@@ -1334,6 +1717,16 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<crate::api::reader::SheetResult> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::reader::SheetResult>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::api::reader::OutcomeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1374,6 +1767,36 @@ impl SseEncode for crate::api::reader::RosterStudent {
     }
 }
 
+impl SseEncode for crate::api::camera::ScanState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::camera::ScanState::Searching => 0,
+                crate::api::camera::ScanState::Reading => 1,
+                crate::api::camera::ScanState::Saved => 2,
+                crate::api::camera::ScanState::AlreadySaved => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::camera::ScanUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::camera::ScanState>::sse_encode(self.state, serializer);
+        <Vec<f32>>::sse_encode(self.table, serializer);
+        <Option<crate::api::reader::SheetResult>>::sse_encode(self.sheet, serializer);
+        <bool>::sse_encode(self.verified, serializer);
+        <u32>::sse_encode(self.frames, serializer);
+        <u32>::sse_encode(self.millis, serializer);
+    }
+}
+
 impl SseEncode for crate::api::reader::SheetResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1385,6 +1808,13 @@ impl SseEncode for crate::api::reader::SheetResult {
         <Vec<crate::api::reader::IssueResult>>::sse_encode(self.issues, serializer);
         <Vec<crate::api::reader::OutcomeResult>>::sse_encode(self.outcomes, serializer);
         <bool>::sse_encode(self.requires_review, serializer);
+    }
+}
+
+impl SseEncode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
     }
 }
 
@@ -1407,13 +1837,6 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
-    }
-}
-
-impl SseEncode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
     }
 }
 

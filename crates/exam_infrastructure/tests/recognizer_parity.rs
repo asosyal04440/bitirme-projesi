@@ -71,7 +71,7 @@ fn preprocessing_matches_the_python_reference() {
 
 #[test]
 fn bundled_model_reads_cells_like_the_python_reference() {
-    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap();
+    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v4.onnx")).unwrap();
     let cases = cases();
     assert!(cases.len() >= 10);
     for case in &cases {

@@ -4,7 +4,7 @@
     python tools/recognizer/train.py \
         --train data/synthetic/train/shard-* \
         --validation data/synthetic/eval/shard-1 --test data/synthetic/eval/shard-2 \
-        --out models --name digit-crnn-v3
+        --out models --name digit-crnn-v4
 
 The validation split picks the best epoch and the review threshold; the test
 split is only scored once at the end with that threshold, so the reported
@@ -103,6 +103,9 @@ def augment(rgb: np.ndarray, rng: random.Random) -> np.ndarray:
         dy0, dy1 = int(h * rng.uniform(-0.06, 0.08)), int(h * rng.uniform(-0.06, 0.08))
         rgb = cv2.copyMakeBorder(rgb, max(0, -dy0), max(0, -dy1), max(0, -dx0), max(0, -dx1), cv2.BORDER_REPLICATE)
         rgb = rgb[max(0, dy0) : rgb.shape[0] - max(0, dy1), max(0, dx0) : rgb.shape[1] - max(0, dx1)]
+    if rng.random() < 0.3:  # pen width: thicker (min filter) or thinner (max filter) dark strokes
+        kernel = np.ones((2, 2), np.uint8)
+        rgb = cv2.erode(rgb, kernel) if rng.random() < 0.5 else cv2.dilate(rgb, kernel)
     if rng.random() < 0.3:
         h, w = rgb.shape[:2]
         matrix = cv2.getRotationMatrix2D((w / 2, h / 2), rng.uniform(-3, 3), 1.0)
@@ -267,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--real-strings", nargs="*", default=[], help="real digit-string images added to training")
     parser.add_argument("--real-repeat", type=int, default=1, help="times each real string is used per epoch")
     parser.add_argument("--out", type=Path, default=Path("models"))
-    parser.add_argument("--name", default="digit-crnn-v3")
+    parser.add_argument("--name", default="digit-crnn-v4")
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=2e-3)
@@ -275,6 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--threads", type=int, default=16)
     parser.add_argument("--device", default="auto", help="auto (CUDA when available), cuda or cpu")
     parser.add_argument("--workers", type=int, default=6, help="processes that read and augment crops")
+    parser.add_argument("--width", type=float, default=1.0, help="channel multiplier of the model")
     parser.add_argument("--target-accuracy", type=float, default=0.99, help="accuracy required for auto-accepted fields")
     parser.add_argument("--min-accepted", type=int, default=100)
     parser.add_argument("--evaluate-only", action="store_true", help="re-score and re-export the saved checkpoint")
@@ -292,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     device = torch.device("cuda" if args.device == "auto" and torch.cuda.is_available() else
                           "cpu" if args.device == "auto" else args.device)
     print(f"device {device}" + (f" ({torch.cuda.get_device_name(device)})" if device.type == "cuda" else ""), flush=True)
-    model = DigitCRNN().to(device)
+    model = DigitCRNN(width=args.width).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * len(batches(train, args.batch_size, random.Random(0), shuffle=False))
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, total_steps=steps, pct_start=0.15)
@@ -331,7 +335,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"epoch {epoch:2d}  loss {np.mean(losses):.4f}  validation exact {accuracy:.4f}  ({time.time() - started:.0f}s)", flush=True)
         if accuracy > best:
             best = accuracy
-            torch.save({"model_state": model.state_dict(), "epoch": epoch, "alphabet": ALPHABET}, checkpoint)
+            torch.save(
+                {"model_state": model.state_dict(), "epoch": epoch, "alphabet": ALPHABET, "width": args.width},
+                checkpoint,
+            )
 
     model.load_state_dict(torch.load(checkpoint, weights_only=True, map_location=device)["model_state"])
     validation_report = score(validation, predict(model, validation))

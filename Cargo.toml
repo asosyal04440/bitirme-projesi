@@ -14,8 +14,15 @@ edition = "2021"
 license = "MIT"
 version = "0.1.0"
 
-
 # Dependencies (tract, image) are optimised in debug builds too, so debug app builds and
 # on-device integration tests run the recognizer at near-release speed.
 [profile.dev.package."*"]
+opt-level = 3
+
+# The image processing of our own crates is optimised too: live camera
+# scanning runs it on every frame, also in debug builds and tests.
+[profile.dev.package.exam-infrastructure]
+opt-level = 3
+
+[profile.dev.package.rust_lib_sinav_okuyucu]
 opt-level = 3

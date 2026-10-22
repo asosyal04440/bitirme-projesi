@@ -1,0 +1,531 @@
+//! Live scanning: sheets are read straight from the camera preview, one after
+//! the other, without taking photos.
+//!
+//! Each frame the sheet is tracked from where it was in the previous frame (a
+//! full search only when it was lost), its cells are read, and the readings of
+//! the last few frames are combined. As soon as the combined reading is certain
+//! (every score and the total accepted, the total adds up, the student number
+//! clear) the sheet is saved. It stays saved while it is in view; the next
+//! sheet is recognised by its different student number.
+
+use crate::api::camera::{CameraFrame, FrameFormat, ScanState, ScanUpdate};
+use crate::api::reader::{ExamReader, SheetResult, NUMBER_FIELD};
+use anyhow::{anyhow, bail};
+use exam_infrastructure::sheet::{fuse_readings, SheetReading};
+use exam_infrastructure::vision::Point;
+use image::RgbImage;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+/// Readings combined at most (the newest frames).
+const WINDOW: usize = 4;
+/// Frames without a sheet before tracking stops and the readings are dropped.
+const LOST_AFTER: u32 = 3;
+/// Frames a sheet may stay uncertain before it is saved for review anyway
+/// (about a second), so the instructor is never kept waiting on a sheet whose
+/// values cannot all be read with certainty, e.g. a total that does not add up.
+const PATIENCE: u32 = 5;
+/// Combined confidence the student number needs before a sheet is saved.
+const NUMBER_CONFIDENCE: f32 = 0.8;
+/// Review reasons that mean the values cannot be right yet.
+const BLOCKING: [&str; 3] = [
+    "total_mismatch",
+    "score_exceeds_maximum",
+    "ambiguous_corrected_score",
+];
+
+#[derive(Default)]
+pub(crate) struct LiveState {
+    previous: Option<[Point; 4]>,
+    misses: u32,
+    recent: Vec<SheetReading>,
+    /// Frames the sheet in view has been read without being saved.
+    reading_for: u32,
+    last_saved: Option<Saved>,
+}
+
+/// What identifies the last saved sheet while it stays in view.
+struct Saved {
+    number: String,
+    values: Vec<String>,
+}
+
+pub(crate) fn scan(reader: &ExamReader, frame: CameraFrame) -> anyhow::Result<ScanUpdate> {
+    let started = Instant::now();
+    let rgb = frame_to_rgb(&frame)?;
+    let mut state = reader
+        .live
+        .lock()
+        .map_err(|_| anyhow!("live scan state is poisoned"))?;
+    let update = step(reader, &mut state, &rgb)?;
+    Ok(ScanUpdate {
+        millis: started.elapsed().as_millis().min(u128::from(u32::MAX)) as u32,
+        ..update
+    })
+}
+
+fn update(
+    state: ScanState,
+    table: Vec<f32>,
+    sheet: Option<SheetResult>,
+    frames: usize,
+) -> ScanUpdate {
+    ScanUpdate {
+        state,
+        table,
+        sheet,
+        verified: false,
+        frames: frames as u32,
+        millis: 0,
+    }
+}
+
+fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::Result<ScanUpdate> {
+    let located = reader.analyzer.locate(rgb, state.previous.as_ref());
+    if !located.found() {
+        state.misses += 1;
+        if state.misses >= LOST_AFTER {
+            state.previous = None;
+            state.recent.clear();
+            state.reading_for = 0;
+        }
+        return Ok(update(ScanState::Searching, Vec::new(), None, 0));
+    }
+    state.previous = Some(located.page_quad);
+    state.misses = 0;
+    let (w, h) = (rgb.width() as f32, rgb.height() as f32);
+    let table: Vec<f32> = reader
+        .analyzer
+        .table_outline(&located)
+        .map(|quad| {
+            quad.iter()
+                .flat_map(|p| [p.x as f32 / w, p.y as f32 / h])
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let reading = reader
+        .analyzer
+        .read_at(rgb, &located)
+        .map_err(|e| anyhow!("{e}"))?;
+    // A fresh search, or a clearly different student number, means another
+    // sheet: its frames must not be mixed with the previous sheet's.
+    let fused_number = fuse_readings(&state.recent).map(|f| number_text(&f));
+    let other_sheet = fused_number
+        .as_deref()
+        .is_some_and(|n| !similar_numbers(n, &number_text(&reading)));
+    if !located.tracked || other_sheet {
+        state.recent.clear();
+        state.reading_for = 0;
+    }
+    state.recent.push(reading);
+    if state.recent.len() > WINDOW {
+        state.recent.remove(0);
+    }
+    let fused = fuse_readings(&state.recent).expect("at least one reading");
+    let frames = state.recent.len();
+
+    let id = sheet_id();
+    let result = reader.sheet_result(id.clone(), rgb, &fused, false)?;
+    let saved_now = Saved {
+        number: number_text(&fused),
+        values: result.cells.iter().map(|c| c.text.clone()).collect(),
+    };
+    if state
+        .last_saved
+        .as_ref()
+        .is_some_and(|last| same_sheet(last, &saved_now))
+    {
+        return Ok(update(ScanState::AlreadySaved, table, None, frames));
+    }
+
+    state.reading_for += 1;
+    let verified = certain(&result);
+    if verified || state.reading_for >= PATIENCE {
+        let result = reader.sheet_result(id, rgb, &fused, true)?;
+        state.last_saved = Some(saved_now);
+        state.recent.clear();
+        state.reading_for = 0;
+        return Ok(ScanUpdate {
+            verified,
+            ..update(ScanState::Saved, table, Some(result), frames)
+        });
+    }
+    Ok(update(ScanState::Reading, table, None, frames))
+}
+
+/// Every score and the total accepted and consistent, the number clear.
+fn certain(result: &SheetResult) -> bool {
+    let number_clear = result
+        .cells
+        .iter()
+        .find(|c| c.field == NUMBER_FIELD)
+        .is_some_and(|c| c.value.is_some() && c.confidence >= NUMBER_CONFIDENCE);
+    number_clear
+        && result
+            .cells
+            .iter()
+            .filter(|c| c.field != NUMBER_FIELD)
+            .all(|c| c.accepted)
+        && !result
+            .issues
+            .iter()
+            .any(|i| BLOCKING.contains(&i.reason.as_str()))
+}
+
+fn number_text(reading: &SheetReading) -> String {
+    reading
+        .fields
+        .iter()
+        .find(|f| f.field_key == "student.number")
+        .and_then(|f| f.reading.as_ref())
+        .map(|r| r.value_text())
+        .unwrap_or_default()
+}
+
+/// Numbers that differ in at most one digit (a misread) count as the same.
+fn similar_numbers(a: &str, b: &str) -> bool {
+    if a.is_empty() || b.is_empty() {
+        return true;
+    }
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let mut previous: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.iter().enumerate() {
+        let mut current = vec![i + 1];
+        for (j, cb) in b.iter().enumerate() {
+            current.push(
+                (current[j] + 1)
+                    .min(previous[j + 1] + 1)
+                    .min(previous[j] + usize::from(ca != cb)),
+            );
+        }
+        previous = current;
+    }
+    previous[b.len()] <= 1
+}
+
+fn same_sheet(last: &Saved, now: &Saved) -> bool {
+    if !last.number.is_empty() && !now.number.is_empty() {
+        return similar_numbers(&last.number, &now.number);
+    }
+    // Without a number, the same values (allowing one misread cell).
+    let differing = last
+        .values
+        .iter()
+        .zip(&now.values)
+        .filter(|(a, b)| a != b)
+        .count();
+    differing <= 1
+}
+
+fn sheet_id() -> String {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_micros().to_string())
+        .unwrap_or_else(|_| "0".to_owned())
+}
+
+/// The frame as an upright RGB image.
+pub(crate) fn frame_to_rgb(frame: &CameraFrame) -> anyhow::Result<RgbImage> {
+    let (width, height) = (frame.width as usize, frame.height as usize);
+    if width == 0 || height == 0 {
+        bail!("empty camera frame");
+    }
+    let plane = |index: usize| {
+        frame
+            .planes
+            .get(index)
+            .ok_or_else(|| anyhow!("camera frame has no plane {index}"))
+    };
+    let mut rgb = vec![0_u8; width * height * 3];
+    match frame.format {
+        FrameFormat::Yuv420 => {
+            let (y, u, v) = (plane(0)?, plane(1)?, plane(2)?);
+            for row in 0..height {
+                for col in 0..width {
+                    let luma = f32::from(
+                        *y.bytes
+                            .get(row * y.row_stride as usize + col * y.pixel_stride.max(1) as usize)
+                            .ok_or_else(|| anyhow!("Y plane too small"))?,
+                    );
+                    let chroma = |p: &crate::api::camera::FramePlane| {
+                        p.bytes
+                            .get(
+                                (row / 2) * p.row_stride as usize
+                                    + (col / 2) * p.pixel_stride.max(1) as usize,
+                            )
+                            .map(|&b| f32::from(b) - 128.0)
+                            .ok_or_else(|| anyhow!("chroma plane too small"))
+                    };
+                    let (cb, cr) = (chroma(u)?, chroma(v)?);
+                    let out = (row * width + col) * 3;
+                    rgb[out] = (luma + 1.402 * cr).clamp(0.0, 255.0) as u8;
+                    rgb[out + 1] = (luma - 0.344_136 * cb - 0.714_136 * cr).clamp(0.0, 255.0) as u8;
+                    rgb[out + 2] = (luma + 1.772 * cb).clamp(0.0, 255.0) as u8;
+                }
+            }
+        }
+        FrameFormat::Bgra8888 | FrameFormat::Rgba8888 => {
+            let p = plane(0)?;
+            let order = if matches!(frame.format, FrameFormat::Bgra8888) {
+                [2, 1, 0]
+            } else {
+                [0, 1, 2]
+            };
+            for row in 0..height {
+                let start = row * p.row_stride as usize;
+                let line = p
+                    .bytes
+                    .get(start..start + width * 4)
+                    .ok_or_else(|| anyhow!("camera frame too small"))?;
+                for col in 0..width {
+                    let out = (row * width + col) * 3;
+                    for c in 0..3 {
+                        rgb[out + c] = line[col * 4 + order[c]];
+                    }
+                }
+            }
+        }
+    }
+    let image = RgbImage::from_raw(frame.width, frame.height, rgb).expect("buffer size matches");
+    Ok(match frame.rotation % 360 {
+        90 => image::imageops::rotate90(&image),
+        180 => image::imageops::rotate180(&image),
+        270 => image::imageops::rotate270(&image),
+        _ => image,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::camera::FramePlane;
+    use crate::api::reader::MaximumScore;
+
+    fn repo(path: &str) -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(path)
+    }
+
+    fn reader() -> ExamReader {
+        let read = |p: &str| std::fs::read(repo(p)).unwrap();
+        ExamReader::new(
+            String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
+            read("tools/synthetic/templates/inonu-final-a.png"),
+            read("models/digit-crnn-v4.onnx"),
+            read("tools/synthetic/templates/inonu-final-a.docx"),
+            ["S3", "S4"]
+                .map(|q| MaximumScore {
+                    question: q.into(),
+                    value: "25".into(),
+                })
+                .into(),
+            Vec::new(),
+        )
+        .unwrap()
+    }
+
+    fn sheet(index: usize) -> RgbImage {
+        let path = format!(
+            "crates/exam_infrastructure/tests/fixtures/sheets/images/syn-900-{index:05}.jpg"
+        );
+        image::open(repo(&path)).unwrap().to_rgb8()
+    }
+
+    /// An RGBA frame of `image` moved by `(dx, dy)`, like a hand-held phone.
+    fn frame(image: &RgbImage, dx: i64, dy: i64) -> CameraFrame {
+        let mut moved =
+            RgbImage::from_pixel(image.width(), image.height(), image::Rgb([90, 90, 90]));
+        image::imageops::overlay(&mut moved, image, dx, dy);
+        let rgba: Vec<u8> = moved
+            .pixels()
+            .flat_map(|p| [p[0], p[1], p[2], 255])
+            .collect();
+        CameraFrame {
+            width: moved.width(),
+            height: moved.height(),
+            format: FrameFormat::Rgba8888,
+            planes: vec![FramePlane {
+                bytes: rgba,
+                row_stride: moved.width() * 4,
+                pixel_stride: 4,
+            }],
+            rotation: 0,
+        }
+    }
+
+    fn empty_frame() -> CameraFrame {
+        frame(
+            &RgbImage::from_pixel(900, 1200, image::Rgb([90, 90, 90])),
+            0,
+            0,
+        )
+    }
+
+    const JITTER: [(i64, i64); 6] = [(0, 0), (3, -2), (-2, 4), (5, 1), (1, -3), (-4, 2)];
+
+    #[test]
+    fn sheets_shown_one_after_another_are_each_saved_once() {
+        let reader = reader();
+        let mut states = Vec::new();
+        let mut saved = Vec::new();
+        let mut run = |frame: CameraFrame| {
+            let update = reader.scan_frame(frame).unwrap();
+            states.push(update.state);
+            if let Some(sheet) = update.sheet {
+                saved.push(sheet);
+            }
+            update.table.len()
+        };
+        run(empty_frame());
+        let (a, b) = (sheet(2), sheet(0));
+        for (dx, dy) in JITTER {
+            assert_eq!(run(frame(&a, dx, dy)), 8, "table outline");
+        }
+        for _ in 0..LOST_AFTER {
+            run(empty_frame());
+        }
+        for (dx, dy) in JITTER {
+            run(frame(&b, dx, dy));
+        }
+
+        let count = |s: ScanState| states.iter().filter(|&&x| x == s).count();
+        assert_eq!(count(ScanState::Saved), 2, "{states:?}");
+        assert_eq!(states[0], ScanState::Searching);
+        assert!(states.contains(&ScanState::AlreadySaved), "{states:?}");
+        // The right sheets, in order (a misread digit is the recognizer's and
+        // is caught by the roster match, not by live scanning).
+        let numbers: Vec<String> = saved
+            .iter()
+            .map(|s| {
+                s.cells
+                    .iter()
+                    .find(|c| c.field == NUMBER_FIELD)
+                    .and_then(|c| c.value.clone())
+                    .unwrap_or_default()
+            })
+            .collect();
+        assert!(similar_numbers(&numbers[0], "09111750633"), "{numbers:?}");
+        assert!(similar_numbers(&numbers[1], "08028915324"), "{numbers:?}");
+        assert!(saved
+            .iter()
+            .all(|s| s.cells.iter().all(|c| !c.crop_png.is_empty())));
+    }
+
+    #[test]
+    fn tracking_is_much_faster_than_finding_the_sheet() {
+        let reader = reader();
+        let a = sheet(1);
+        let first = reader.scan_frame(frame(&a, 0, 0)).unwrap();
+        let tracked: Vec<u32> = JITTER[1..4]
+            .iter()
+            .map(|&(dx, dy)| reader.scan_frame(frame(&a, dx, dy)).unwrap().millis)
+            .collect();
+        eprintln!(
+            "first frame {} ms, tracked frames {tracked:?} ms",
+            first.millis
+        );
+        assert!(
+            tracked.iter().all(|&t| t < first.millis),
+            "{} vs {tracked:?}",
+            first.millis
+        );
+    }
+
+    fn yuv_frame(image: &RgbImage, interleaved: bool) -> CameraFrame {
+        let (w, h) = (image.width() as usize, image.height() as usize);
+        let (cw, ch) = (w.div_ceil(2), h.div_ceil(2));
+        let mut y = vec![0_u8; w * h];
+        let mut u = vec![0_u8; cw * ch];
+        let mut v = vec![0_u8; cw * ch];
+        for (x, row, p) in image.enumerate_pixels() {
+            let (r, g, b) = (f32::from(p[0]), f32::from(p[1]), f32::from(p[2]));
+            let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+            y[row as usize * w + x as usize] = luma.round() as u8;
+            if x % 2 == 0 && row % 2 == 0 {
+                let i = (row as usize / 2) * cw + x as usize / 2;
+                u[i] = ((b - luma) / 1.772 + 128.0).round().clamp(0.0, 255.0) as u8;
+                v[i] = ((r - luma) / 1.402 + 128.0).round().clamp(0.0, 255.0) as u8;
+            }
+        }
+        let plane = |bytes: Vec<u8>, row_stride: usize, pixel_stride: u32| FramePlane {
+            bytes,
+            row_stride: row_stride as u32,
+            pixel_stride,
+        };
+        let planes = if interleaved {
+            // Android NV21-style: V and U share one buffer, pixel stride 2.
+            let mut vu = vec![0_u8; cw * ch * 2];
+            for i in 0..cw * ch {
+                vu[2 * i] = v[i];
+                vu[2 * i + 1] = u[i];
+            }
+            let u_bytes = vu[1..].to_vec();
+            vec![
+                plane(y, w, 1),
+                plane(u_bytes, cw * 2, 2),
+                plane(vu, cw * 2, 2),
+            ]
+        } else {
+            vec![plane(y, w, 1), plane(u, cw, 1), plane(v, cw, 1)]
+        };
+        CameraFrame {
+            width: w as u32,
+            height: h as u32,
+            format: FrameFormat::Yuv420,
+            planes,
+            rotation: 0,
+        }
+    }
+
+    #[test]
+    fn android_yuv_frames_become_the_same_picture() {
+        let colours = [
+            image::Rgb([200, 30, 40]),
+            image::Rgb([20, 180, 60]),
+            image::Rgb([240, 240, 240]),
+        ];
+        // 2x2 blocks of one colour, since 2x2 pixels share their chroma.
+        let image = RgbImage::from_fn(8, 6, |x, y| colours[((x / 2 + y / 2) % 3) as usize]);
+        for interleaved in [false, true] {
+            let rgb = frame_to_rgb(&yuv_frame(&image, interleaved)).unwrap();
+            for (a, b) in image.pixels().zip(rgb.pixels()) {
+                for c in 0..3 {
+                    assert!(
+                        (i16::from(a[c]) - i16::from(b[c])).abs() <= 3,
+                        "{a:?} vs {b:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ios_bgra_frames_are_reordered_and_rotated_upright() {
+        // A 2x1 sensor image (red, blue) turned 90° clockwise is 1x2, red on top.
+        let frame = CameraFrame {
+            width: 2,
+            height: 1,
+            format: FrameFormat::Bgra8888,
+            planes: vec![FramePlane {
+                bytes: vec![0, 0, 255, 255, 255, 0, 0, 255, 9, 9, 9, 9],
+                row_stride: 12,
+                pixel_stride: 4,
+            }],
+            rotation: 90,
+        };
+        let rgb = frame_to_rgb(&frame).unwrap();
+        assert_eq!(rgb.dimensions(), (1, 2));
+        assert_eq!(rgb.get_pixel(0, 0).0, [255, 0, 0]);
+        assert_eq!(rgb.get_pixel(0, 1).0, [0, 0, 255]);
+    }
+
+    #[test]
+    fn numbers_one_digit_apart_are_the_same_student() {
+        assert!(similar_numbers("04451095728", "04451095728"));
+        assert!(similar_numbers("04451095728", "04451095723"));
+        assert!(similar_numbers("04451095728", "0445109572"));
+        assert!(!similar_numbers("04451095728", "09111750633"));
+        assert!(similar_numbers("", "09111750633"));
+    }
+}

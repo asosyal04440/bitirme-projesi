@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/camera.dart';
 import 'api/exam.dart';
 import 'api/reader.dart';
 
@@ -70,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1008502609;
+  int get rustContentHash => 1997804237;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -108,6 +109,13 @@ abstract class RustLibApi extends BaseApi {
     required ExamReader that,
     required String sheetId,
     required List<int> photo,
+  });
+
+  void crateApiReaderExamReaderResetScan({required ExamReader that});
+
+  Future<ScanUpdate> crateApiReaderExamReaderScanFrame({
+    required ExamReader that,
+    required CameraFrame frame,
   });
 
   Future<void> crateApiInitApp();
@@ -337,6 +345,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiReaderExamReaderResetScan({required ExamReader that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiReaderExamReaderResetScanConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderResetScanConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_reset_scan",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<ScanUpdate> crateApiReaderExamReaderScanFrame({
+    required ExamReader that,
+    required CameraFrame frame,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+            that,
+            serializer,
+          );
+          sse_encode_box_autoadd_camera_frame(frame, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_scan_update,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReaderExamReaderScanFrameConstMeta,
+        argValues: [that, frame],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderScanFrameConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_scan_frame",
+        argNames: ["that", "frame"],
+      );
+
+  @override
   Future<void> crateApiInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -345,7 +420,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -373,7 +448,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -445,6 +520,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CameraFrame dco_decode_box_autoadd_camera_frame(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_camera_frame(raw);
+  }
+
+  @protected
+  SheetResult dco_decode_box_autoadd_sheet_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sheet_result(raw);
+  }
+
+  @protected
+  CameraFrame dco_decode_camera_frame(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return CameraFrame(
+      width: dco_decode_u_32(arr[0]),
+      height: dco_decode_u_32(arr[1]),
+      format: dco_decode_frame_format(arr[2]),
+      planes: dco_decode_list_frame_plane(arr[3]),
+      rotation: dco_decode_u_32(arr[4]),
+    );
+  }
+
+  @protected
   CellResult dco_decode_cell_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -509,6 +611,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameFormat dco_decode_frame_format(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FrameFormat.values[raw as int];
+  }
+
+  @protected
+  FramePlane dco_decode_frame_plane(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FramePlane(
+      bytes: dco_decode_list_prim_u_8_strict(arr[0]),
+      rowStride: dco_decode_u_32(arr[1]),
+      pixelStride: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   IssueResult dco_decode_issue_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -537,6 +664,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<FieldValue> dco_decode_list_field_value(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_field_value).toList();
+  }
+
+  @protected
+  List<FramePlane> dco_decode_list_frame_plane(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frame_plane).toList();
   }
 
   @protected
@@ -612,6 +745,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetResult? dco_decode_opt_box_autoadd_sheet_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sheet_result(raw);
+  }
+
+  @protected
   OutcomeResult dco_decode_outcome_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -668,6 +807,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScanState dco_decode_scan_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ScanState.values[raw as int];
+  }
+
+  @protected
+  ScanUpdate dco_decode_scan_update(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return ScanUpdate(
+      state: dco_decode_scan_state(arr[0]),
+      table: dco_decode_list_prim_f_32_strict(arr[1]),
+      sheet: dco_decode_opt_box_autoadd_sheet_result(arr[2]),
+      verified: dco_decode_bool(arr[3]),
+      frames: dco_decode_u_32(arr[4]),
+      millis: dco_decode_u_32(arr[5]),
+    );
+  }
+
+  @protected
   SheetResult dco_decode_sheet_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -683,6 +844,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       outcomes: dco_decode_list_outcome_result(arr[6]),
       requiresReview: dco_decode_bool(arr[7]),
     );
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -760,6 +927,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CameraFrame sse_decode_box_autoadd_camera_frame(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_camera_frame(deserializer));
+  }
+
+  @protected
+  SheetResult sse_decode_box_autoadd_sheet_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sheet_result(deserializer));
+  }
+
+  @protected
+  CameraFrame sse_decode_camera_frame(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_format = sse_decode_frame_format(deserializer);
+    var var_planes = sse_decode_list_frame_plane(deserializer);
+    var var_rotation = sse_decode_u_32(deserializer);
+    return CameraFrame(
+      width: var_width,
+      height: var_height,
+      format: var_format,
+      planes: var_planes,
+      rotation: var_rotation,
+    );
+  }
+
+  @protected
   CellResult sse_decode_cell_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field = sse_decode_String(deserializer);
@@ -833,6 +1033,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameFormat sse_decode_frame_format(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FrameFormat.values[inner];
+  }
+
+  @protected
+  FramePlane sse_decode_frame_plane(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bytes = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_rowStride = sse_decode_u_32(deserializer);
+    var var_pixelStride = sse_decode_u_32(deserializer);
+    return FramePlane(
+      bytes: var_bytes,
+      rowStride: var_rowStride,
+      pixelStride: var_pixelStride,
+    );
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
   IssueResult sse_decode_issue_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_reason = sse_decode_String(deserializer);
@@ -877,6 +1103,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <FieldValue>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_field_value(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FramePlane> sse_decode_list_frame_plane(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FramePlane>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frame_plane(deserializer));
     }
     return ans_;
   }
@@ -1002,6 +1240,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetResult? sse_decode_opt_box_autoadd_sheet_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sheet_result(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   OutcomeResult sse_decode_outcome_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -1059,6 +1310,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScanState sse_decode_scan_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ScanState.values[inner];
+  }
+
+  @protected
+  ScanUpdate sse_decode_scan_update(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_scan_state(deserializer);
+    var var_table = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_sheet = sse_decode_opt_box_autoadd_sheet_result(deserializer);
+    var var_verified = sse_decode_bool(deserializer);
+    var var_frames = sse_decode_u_32(deserializer);
+    var var_millis = sse_decode_u_32(deserializer);
+    return ScanUpdate(
+      state: var_state,
+      table: var_table,
+      sheet: var_sheet,
+      verified: var_verified,
+      frames: var_frames,
+      millis: var_millis,
+    );
+  }
+
+  @protected
   SheetResult sse_decode_sheet_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_sheetId = sse_decode_String(deserializer);
@@ -1082,6 +1359,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
@@ -1096,12 +1379,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -1165,6 +1442,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_camera_frame(
+    CameraFrame self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_camera_frame(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sheet_result(
+    SheetResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sheet_result(self, serializer);
+  }
+
+  @protected
+  void sse_encode_camera_frame(CameraFrame self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_frame_format(self.format, serializer);
+    sse_encode_list_frame_plane(self.planes, serializer);
+    sse_encode_u_32(self.rotation, serializer);
+  }
+
+  @protected
   void sse_encode_cell_result(CellResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.field, serializer);
@@ -1214,6 +1519,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_frame_format(FrameFormat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_frame_plane(FramePlane self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_8_strict(self.bytes, serializer);
+    sse_encode_u_32(self.rowStride, serializer);
+    sse_encode_u_32(self.pixelStride, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
   void sse_encode_issue_result(IssueResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.reason, serializer);
@@ -1251,6 +1576,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_field_value(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frame_plane(
+    List<FramePlane> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frame_plane(item, serializer);
     }
   }
 
@@ -1376,6 +1713,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sheet_result(
+    SheetResult? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sheet_result(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_outcome_result(OutcomeResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -1412,6 +1762,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_scan_state(ScanState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_scan_update(ScanUpdate self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_scan_state(self.state, serializer);
+    sse_encode_list_prim_f_32_strict(self.table, serializer);
+    sse_encode_opt_box_autoadd_sheet_result(self.sheet, serializer);
+    sse_encode_bool(self.verified, serializer);
+    sse_encode_u_32(self.frames, serializer);
+    sse_encode_u_32(self.millis, serializer);
+  }
+
+  @protected
   void sse_encode_sheet_result(SheetResult self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.sheetId, serializer);
@@ -1422,6 +1789,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_issue_result(self.issues, serializer);
     sse_encode_list_outcome_result(self.outcomes, serializer);
     sse_encode_bool(self.requiresReview, serializer);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected
@@ -1439,12 +1812,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
   }
 }
 
@@ -1501,4 +1868,19 @@ class ExamReaderImpl extends RustOpaque implements ExamReader {
     sheetId: sheetId,
     photo: photo,
   );
+
+  /// Forgets the sheet being scanned and the last saved one, e.g. when the
+  /// scanning screen is opened again.
+  void resetScan() =>
+      RustLib.instance.api.crateApiReaderExamReaderResetScan(that: this);
+
+  /// Reads one frame of the live camera preview. Call it for frame after
+  /// frame (skipping frames while a call is running): it follows the sheet,
+  /// combines the readings of consecutive frames and reports `Saved` with the
+  /// result once, as soon as the sheet is read reliably. The next sheet is
+  /// read when it comes into view.
+  Future<ScanUpdate> scanFrame({required CameraFrame frame}) => RustLib
+      .instance
+      .api
+      .crateApiReaderExamReaderScanFrame(that: this, frame: frame);
 }

@@ -26,7 +26,7 @@ use std::path::Path;
 const CROP_HEIGHT: u32 = 64;
 /// Below this template correlation the sheet location is doubtful and the
 /// page goes to review.
-const MIN_REGISTRATION_SCORE: f64 = 0.35;
+pub const MIN_REGISTRATION_SCORE: f64 = 0.35;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 struct NormalizedBox {
@@ -234,6 +234,23 @@ pub struct FieldReading {
     pub reading: Option<CellReading>,
 }
 
+/// Where a sheet was found in a photo or camera frame.
+#[derive(Debug, Clone, Copy)]
+pub struct Located {
+    pub page_quad: [Point; 4],
+    /// Correlation with the blank template; the sheet counts as found at
+    /// [`MIN_REGISTRATION_SCORE`] or above.
+    pub registration_score: f64,
+    /// True when it was followed from the previous frame.
+    pub tracked: bool,
+}
+
+impl Located {
+    pub fn found(&self) -> bool {
+        self.registration_score >= MIN_REGISTRATION_SCORE
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SheetReading {
     pub width: u32,
@@ -310,8 +327,25 @@ impl TemplateSheetAnalyzer {
     }
 
     pub fn read_sheet(&self, photo: &image::RgbImage) -> Result<SheetReading, AnalyzerError> {
-        let (width, height) = photo.dimensions();
-        let (w, h) = (f64::from(width), f64::from(height));
+        let located = self.locate(photo, None);
+        self.read_at(photo, &located)
+    }
+
+    /// Finds the sheet in a photo or camera frame. With the outline found in
+    /// the previous frame it only tracks it, which is much faster; it falls
+    /// back to a full search when tracking loses the sheet.
+    pub fn locate(&self, photo: &image::RgbImage, previous: Option<&[Point; 4]>) -> Located {
+        if let Some(previous) = previous {
+            let (quad, score) = self.template.registrar.track(photo, previous);
+            if score >= MIN_REGISTRATION_SCORE {
+                return Located {
+                    page_quad: quad,
+                    registration_score: score,
+                    tracked: true,
+                };
+            }
+        }
+        let (w, h) = (f64::from(photo.width()), f64::from(photo.height()));
         let frame = |inset: f64| {
             Rect {
                 x: w * inset,
@@ -323,7 +357,29 @@ impl TemplateSheetAnalyzer {
         };
         let mut candidates: Vec<[Point; 4]> = detect_page(photo).into_iter().collect();
         candidates.extend([frame(0.0), frame(0.06)]);
+        candidates.extend(previous.copied());
         let (page_quad, registration_score) = self.template.registrar.register(photo, &candidates);
+        Located {
+            page_quad,
+            registration_score,
+            tracked: false,
+        }
+    }
+
+    /// Where the `Soru-PÇ` table (mapping row, scores and total) lies in the
+    /// photo for a located sheet, for drawing it over the camera preview.
+    pub fn table_outline(&self, located: &Located) -> Option<[Point; 4]> {
+        let to_photo = self.to_photo(located)?;
+        let t = &self.template;
+        let table = t
+            .questions
+            .iter()
+            .flat_map(|q| [q.mapping_cell, q.score_cell])
+            .fold(t.total_cell, |acc, c| acc.union(&c));
+        Some(table.corners().map(|p| to_photo.apply(p)))
+    }
+
+    fn to_photo(&self, located: &Located) -> Option<Homography> {
         let (tw, th) = self.template.aligner.template_size();
         let template_corners = Rect {
             x: 0.0,
@@ -332,7 +388,23 @@ impl TemplateSheetAnalyzer {
             height: th as f64,
         }
         .corners();
-        let to_photo = Homography::from_points(&template_corners, &page_quad)
+        Homography::from_points(&template_corners, &located.page_quad)
+    }
+
+    /// Aligns and reads the cells of a sheet found with [`Self::locate`].
+    pub fn read_at(
+        &self,
+        photo: &image::RgbImage,
+        located: &Located,
+    ) -> Result<SheetReading, AnalyzerError> {
+        let (width, height) = photo.dimensions();
+        let Located {
+            page_quad,
+            registration_score,
+            ..
+        } = *located;
+        let to_photo = self
+            .to_photo(located)
             .ok_or_else(|| AnalyzerError::Failed("degenerate page outline".to_owned()))?;
 
         let t = &self.template;
@@ -591,6 +663,59 @@ fn crop(photo: &image::RgbImage, quad: &[Point; 4]) -> image::RgbImage {
     warp_quad(photo, quad, width, CROP_HEIGHT)
 }
 
+/// Combines readings of one sheet from consecutive camera frames.
+///
+/// Each field takes the text most frames agree on (ties go to the higher
+/// summed confidence). Agreement is evidence: the fused confidence is the
+/// chance that not every agreeing frame is wrong, `1 − Π(1 − cᵢ)`, scaled by
+/// the share of frames that agree, so one blurry frame cannot outvote two
+/// sharp ones and a value seen once among disagreeing frames stays doubtful.
+/// Geometry comes from the newest reading. `None` for no readings.
+pub fn fuse_readings(readings: &[SheetReading]) -> Option<SheetReading> {
+    let newest = readings.last()?;
+    let mut fused = newest.clone();
+    let frames = readings.len() as f32;
+    for (index, field) in fused.fields.iter_mut().enumerate() {
+        if field.reading.is_none() {
+            continue;
+        }
+        let mut groups: Vec<(String, Vec<&CellReading>)> = Vec::new();
+        for reading in readings
+            .iter()
+            .filter_map(|r| r.fields.get(index))
+            .filter(|f| f.field == field.field)
+            .filter_map(|f| f.reading.as_ref())
+        {
+            match groups.iter_mut().find(|(text, _)| *text == reading.text) {
+                Some((_, members)) => members.push(reading),
+                None => groups.push((reading.text.clone(), vec![reading])),
+            }
+        }
+        let summed = |members: &[&CellReading]| members.iter().map(|r| r.confidence).sum::<f32>();
+        let Some((text, members)) = groups.into_iter().max_by(|a, b| {
+            a.1.len()
+                .cmp(&b.1.len())
+                .then(summed(&a.1).total_cmp(&summed(&b.1)))
+        }) else {
+            continue;
+        };
+        let all_wrong: f32 = members
+            .iter()
+            .map(|r| 1.0 - r.confidence.clamp(0.0, 1.0))
+            .product();
+        field.reading = Some(CellReading {
+            text,
+            confidence: (1.0 - all_wrong) * members.len() as f32 / frames,
+        });
+    }
+    fused.registration_score = readings
+        .iter()
+        .map(|r| r.registration_score)
+        .fold(f64::MIN, f64::max);
+    fused.page_found = readings.iter().any(|r| r.page_found);
+    Some(fused)
+}
+
 /// Axis-aligned box of a photo quad, normalized to the photo size.
 pub fn source_region(
     page_index: u32,
@@ -626,4 +751,70 @@ pub fn source_region(
     BoundingBox::new(x0 as f32, y0 as f32, (x1 - x0) as f32, (y1 - y0) as f32)
         .ok()
         .map(|bounds| SourceRegion::new(page_index, bounds))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reading(cells: &[(&str, f32)]) -> SheetReading {
+        let quad = [Point::new(0.0, 0.0); 4];
+        SheetReading {
+            width: 100,
+            height: 100,
+            page_found: true,
+            registration_score: 0.8,
+            page_quad: quad,
+            fields: cells
+                .iter()
+                .enumerate()
+                .map(|(i, (text, confidence))| FieldReading {
+                    field: SheetField::Score(i),
+                    field_key: format!("question:{}.earned_score", i + 1),
+                    quad,
+                    reading: Some(CellReading {
+                        text: (*text).to_owned(),
+                        confidence: *confidence,
+                    }),
+                })
+                .collect(),
+        }
+    }
+
+    fn fused(readings: &[SheetReading]) -> Vec<(String, f32)> {
+        fuse_readings(readings)
+            .unwrap()
+            .fields
+            .into_iter()
+            .map(|f| f.reading.unwrap())
+            .map(|r| (r.text, r.confidence))
+            .collect()
+    }
+
+    #[test]
+    fn agreeing_frames_raise_the_confidence() {
+        let result = fused(&[reading(&[("17", 0.7)]), reading(&[("17", 0.7)])]);
+        assert_eq!(result[0].0, "17");
+        assert!((result[0].1 - 0.91).abs() < 1e-6);
+    }
+
+    #[test]
+    fn two_frames_outvote_one_and_disagreement_lowers_confidence() {
+        let result = fused(&[
+            reading(&[("17", 0.9)]),
+            reading(&[("11", 0.95)]),
+            reading(&[("17", 0.9)]),
+        ]);
+        assert_eq!(result[0].0, "17");
+        // 1 − 0.1 × 0.1 = 0.99, but only 2 of 3 frames agree.
+        assert!((result[0].1 - 0.66).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_tie_goes_to_the_more_confident_text() {
+        let result = fused(&[reading(&[("23", 0.6)]), reading(&[("28", 0.8)])]);
+        assert_eq!(result[0].0, "28");
+        assert!((result[0].1 - 0.4).abs() < 1e-6);
+        assert!(fuse_readings(&[]).is_none());
+    }
 }

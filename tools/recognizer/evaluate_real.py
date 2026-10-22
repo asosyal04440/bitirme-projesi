@@ -9,7 +9,9 @@ The CVL Digit Strings evaluation set (ICDAR 2013, TU Wien; CC BY-NC 4.0) holds
 the true string and the second field is the writer ("102246-0001-21.png").
 `--exclude-writers-from` drops every writer that appears in the given training
 folders, so the score covers only people whose handwriting the model never saw.
-Strings are decoded as the student-number field (digits only).
+Strings are decoded as the student-number field (digits only), one image at a
+time as in the app: in a batch the narrower images get white padding on the
+right, which makes them slightly easier and would overstate the accuracy.
 """
 
 from __future__ import annotations
@@ -52,13 +54,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     torch.set_num_threads(args.threads)
-    model = DigitCRNN()
-    model.load_state_dict(torch.load(args.model, weights_only=True, map_location="cpu")["model_state"])
+    checkpoint = torch.load(args.model, weights_only=True, map_location="cpu")
+    model = DigitCRNN(width=checkpoint.get("width", 1.0))
+    model.load_state_dict(checkpoint["model_state"])
     if torch.cuda.is_available():
         model = model.cuda()
     excluded = {writer(p) for folder in args.exclude_writers_from for p in folder.rglob("*.png")}
     samples = cvl_samples(args.cvl, excluded)
-    predictions = predict(model, samples)
+    predictions = predict(model, samples, batch_size=1)
     report = score(samples, predictions)
     by_length: dict[int, list[bool]] = {}
     for sample, (text, _) in zip(samples, predictions):

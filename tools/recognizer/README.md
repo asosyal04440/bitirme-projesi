@@ -29,11 +29,11 @@ the project `.venv` (Python 3.12 with the CUDA build of PyTorch); `--device auto
 .venv/Scripts/python tools/recognizer/train.py --train "data/synthetic/train-v3/shard-*" `
   --real-strings data/raw/cvl/strings-train/train --real-repeat 4 `
   --validation data/synthetic/eval-v2/shard-1 --test data/synthetic/eval-v2/shard-2 `
-  --out models --name digit-crnn-v3 --epochs 25 --lr 1e-3 --workers 12
-.venv/Scripts/python tools/recognizer/evaluate_real.py --model models/digit-crnn-v3.pt `
+  --out models --name digit-crnn-v4 --epochs 35 --lr 1e-3 --workers 12 --width 1.5
+.venv/Scripts/python tools/recognizer/evaluate_real.py --model models/digit-crnn-v4.pt `
   --cvl data/raw/cvl/strings-eval/cvl-strings-eval `
-  --exclude-writers-from data/raw/cvl/strings-train data/raw/cvl/cvl-single --out models/digit-crnn-v3.real.json
-.venv/Scripts/python tools/recognizer/export_fixtures.py --model models/digit-crnn-v3.onnx `
+  --exclude-writers-from data/raw/cvl/strings-train data/raw/cvl/cvl-single --out models/digit-crnn-v4.real.json
+.venv/Scripts/python tools/recognizer/export_fixtures.py --model models/digit-crnn-v4.onnx `
   --data data/synthetic/eval-v2/shard-2 --out crates/exam_infrastructure/tests/fixtures/recognizer
 ```
 
@@ -47,30 +47,53 @@ data provenance and the ONNX hash are written to `models/<name>.metrics.json`.
 `evaluate_real.py` scores a model on the CVL Digit Strings evaluation set (ICDAR 2013, TU Wien,
 CC BY-NC 4.0): scanned 5–7 digit strings written with pens by real people. Writers that appear in
 any CVL training part are excluded, which leaves **4,687 strings by 181 writers the model never
-saw**. Strings are decoded like the student-number field (digits only).
+saw**. Strings are decoded like the student-number field (digits only), one image at a time as in
+the app (batches pad narrow images with white, which flatters the score by about two points).
 
 | Model | Training digits | Exact match | Character error rate |
 |---|---|---|---|
-| `digit-crnn-v1` | MNIST + handwriting fonts | 28.6% | 20.2% |
-| `digit-crnn-v2` | + EMNIST + USPS | 19.1% | 26.7% |
-| `digit-crnn-v3` | EMNIST + CVL pen digits + 1,262 real strings | **83.1%** | **3.2%** |
+| `digit-crnn-v1` | MNIST + handwriting fonts | 24.9% | 21.9% |
+| `digit-crnn-v2` | + EMNIST + USPS | 19.1%\* | 26.7%\* |
+| `digit-crnn-v3` | EMNIST + CVL pen digits + 1,262 real strings | 80.7% | 3.7% |
+| `digit-crnn-v4` | as v3, 1.5× wider, pen-width augmentation | **83.0%** | **3.2%** |
+
+\* measured with the earlier batched evaluation; the v2 weights were not kept.
 
 v2 shows that more MNIST-style digits do not help: they are thick, centred bitmaps, while pen
-writing is thin, slanted and touching. Real pen strokes are what closed the gap. The confidence is
-meaningful on real writing too: v3 is right on 96.8% of the strings it reads with confidence ≥ 0.99
-(15% of them) and on 93.1% at ≥ 0.9 (41%).
+writing is thin, slanted and touching. Real pen strokes are what closed the gap.
 
-## Current model: `digit-crnn-v3` (2026-10-19)
+Caveat: v3 and v4 were trained on other parts of CVL (different writers, but the same forms, pens
+and scanning), so CVL measures generalisation to new people more than to new paper and cameras.
+Real İnönü sheets remain the decisive test.
 
-Trained 25 epochs on the RTX 4050 (about 52 s per epoch) on 33,848 crops: 28,800 synthetic ones
-(4,800 sheets) and the CVL training strings four times. Synthetic test split (MNIST/EMNIST/USPS test
-writers), field-aware decoding: score cells 93.1%, `Not:` total 83.5%, student number 63.0%
-(v1: 96.0%, 89.0%, 64.5%). On synthetic sheets v1 is slightly better because its training digits
-look like the test digits; on real handwriting v3 is far better, and that is what the app needs.
-Full numbers: `models/digit-crnn-v3.metrics.json` and `models/digit-crnn-v3.real.json`.
+### Ready-made models on the same test
 
-- Threshold chosen on validation for 99% accuracy: 0.99 → on the synthetic test, 42.8% of fields
-  are accepted automatically with 99.2% accuracy (v1: 31.8%); the rest go to instructor review.
+`compare_models.py` runs ready-made recognizers on exactly the same strings, digits-only
+(`models/comparison.json`):
+
+| Model | Exact match | CER | Time per image | Size |
+|---|---|---|---|---|
+| **`digit-crnn-v4` (ours)** | **83.0%** | **3.2%** | 1.9 ms (CPU) | 5.4 MB |
+| `digit-crnn-v3` (ours) | 80.7% | 3.7% | 1.2 ms (CPU) | 2.4 MB |
+| PaddleOCR PP-OCRv4 mobile recognition | 39.1% | 18.7% | 15.1 ms (CPU) | 10.4 MB |
+| TrOCR small handwritten (Microsoft) | 1.0% | 106% | 40.7 ms (RTX 4050 GPU) | 235 MB |
+
+PaddleOCR is a general printed-text recogniser (6,600+ characters); handwritten digits are not
+what it was trained for. TrOCR was trained on English handwritten text lines and writes words for
+digit strings ("References and structures" for 136075); restricted to digit tokens it only repeats
+digits. A narrow model trained for the task is both more accurate and far smaller and faster here.
+
+## Current model: `digit-crnn-v4` (2026-10-22)
+
+Width 1.5 (1.42 M parameters, 5.4 MB ONNX), trained 35 epochs on the RTX 4050 (about 66 s per
+epoch) on the v3 data: 28,800 synthetic crops (EMNIST and CVL pen digits) and the CVL training
+strings four times, with pen-width augmentation. Synthetic test split (MNIST/EMNIST/USPS test
+writers): score cells 94.0%, `Not:` total 86.0%, student number 65.0%. On real CVL strings it is
+right on 96.5% of the strings it reads with confidence ≥ 0.99 (21% of them) and on 92.7% at ≥ 0.9
+(45%). Reading the six cells of a sheet takes about 80 ms on a laptop CPU in Rust (v3: 46 ms);
+the extra accuracy is worth it, and confident readings let live scanning save a sheet in fewer
+frames. Full numbers: `models/digit-crnn-v4.metrics.json` and `models/digit-crnn-v4.real.json`.
+
 - Student-number errors are mostly one misread digit; matching the number against the course roster
   (unique candidate at edit distance ≤ 1) handles them.
 - A first run with max LR 2e-3 stalled on the CTC "all blank" plateau; max LR 1e-3 is used since.

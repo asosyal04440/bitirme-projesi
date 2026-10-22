@@ -99,21 +99,26 @@ def _block(inputs: int, outputs: int) -> list[nn.Module]:
 
 
 class DigitCRNN(nn.Module):
-    """Fully convolutional CTC recognizer: height 32 -> 1, width / 4 time steps."""
+    """Fully convolutional CTC recognizer: height 32 -> 1, width / 4 time steps.
 
-    def __init__(self, classes: int = len(ALPHABET) + 1) -> None:
+    `width` scales every channel count; 1.0 is the original model (v1-v3).
+    """
+
+    def __init__(self, classes: int = len(ALPHABET) + 1, width: float = 1.0) -> None:
         super().__init__()
+        c = lambda n: int(round(n * width))  # noqa: E731
+        self.width = width
         self.features = nn.Sequential(
-            *_block(3, 32), nn.MaxPool2d(2),
-            *_block(32, 64), nn.MaxPool2d(2),
-            *_block(64, 128), *_block(128, 128), nn.MaxPool2d((2, 1)),
-            *_block(128, 160), nn.MaxPool2d((2, 1)),
-            nn.Conv2d(160, 160, (2, 1), bias=False), nn.BatchNorm2d(160), nn.ReLU(inplace=True),
+            *_block(3, c(32)), nn.MaxPool2d(2),
+            *_block(c(32), c(64)), nn.MaxPool2d(2),
+            *_block(c(64), c(128)), *_block(c(128), c(128)), nn.MaxPool2d((2, 1)),
+            *_block(c(128), c(160)), nn.MaxPool2d((2, 1)),
+            nn.Conv2d(c(160), c(160), (2, 1), bias=False), nn.BatchNorm2d(c(160)), nn.ReLU(inplace=True),
         )
         self.sequence = nn.Sequential(
-            nn.Conv1d(160, 160, 3, padding=1), nn.ReLU(inplace=True), nn.Dropout(0.1),
-            nn.Conv1d(160, 160, 3, padding=1), nn.ReLU(inplace=True),
-            nn.Conv1d(160, classes, 1),
+            nn.Conv1d(c(160), c(160), 3, padding=1), nn.ReLU(inplace=True), nn.Dropout(0.1),
+            nn.Conv1d(c(160), c(160), 3, padding=1), nn.ReLU(inplace=True),
+            nn.Conv1d(c(160), classes, 1),
         )
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:

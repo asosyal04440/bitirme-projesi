@@ -1,0 +1,57 @@
+{
+  "corpus": "CVL Digit Strings eval, 4687 strings by 181 writers absent from CVL training parts; one image at a time; digits-only decoding",
+  "results": [
+    {
+      "model": "digit-crnn-v4 (bizim)",
+      "count": 4687,
+      "exact_match": 0.8297,
+      "character_error_rate": 0.0323,
+      "ms_per_image_median": 1.86,
+      "device": "cpu",
+      "size_mb": 5.4,
+      "confidence_0.9": {
+        "coverage": 0.4534,
+        "accuracy": 0.9271
+      }
+    },
+    {
+      "model": "digit-crnn-v3 (bizim, önceki)",
+      "count": 4687,
+      "exact_match": 0.8065,
+      "character_error_rate": 0.037,
+      "ms_per_image_median": 1.19,
+      "device": "cpu",
+      "size_mb": 2.4,
+      "confidence_0.9": {
+        "coverage": 0.3825,
+        "accuracy": 0.9208
+      }
+    },
+    {
+      "model": "PaddleOCR PP-OCRv4 mobile",
+      "count": 4687,
+      "exact_match": 0.3907,
+      "character_error_rate": 0.1872,
+      "ms_per_image_median": 15.07,
+      "device": "cpu",
+      "size_mb": 10.4,
+      "confidence_0.9": {
+        "coverage": 0.0175,
+        "accuracy": 0.9146
+      }
+    },
+    {
+      "model": "TrOCR small handwritten",
+      "count": 4687,
+      "exact_match": 0.0102,
+      "character_error_rate": 1.0559,
+      "ms_per_image_median": 40.67,
+      "device": "cuda (RTX 4050)",
+      "size_mb": 235.0,
+      "confidence_0.9": {
+        "coverage": 0.0002,
+        "accuracy": 1.0
+      }
+    }
+  ]
+}

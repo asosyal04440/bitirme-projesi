@@ -1,15 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../app_state.dart';
-import '../src/rust/api/reader.dart';
+import '../excel_export.dart';
 import '../storage.dart';
+import 'live_scan_page.dart';
 import 'sheet_review_page.dart';
 
 class ExamPage extends StatefulWidget {
@@ -25,6 +23,12 @@ class _ExamPageState extends State<ExamPage> {
   bool _reading = false;
   bool _exporting = false;
 
+  /// Live scanning with the camera: sheets are read one after another.
+  Future<void> _scanLive() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => LiveScanPage(exam: widget.exam)),
+  );
+
+  /// One photo from the gallery, checked on the review screen.
   Future<void> _scan(ImageSource source) async {
     final photo = await ImagePicker().pickImage(
       source: source,
@@ -75,36 +79,7 @@ class _ExamPageState extends State<ExamPage> {
     }
     setState(() => _exporting = true);
     try {
-      final reader = await exam.reader();
-      final bytes = await reader.exportExcel(
-        sheets: [
-          for (final record in exam.sheets.reversed)
-            ReportSheet(
-              studentNumber: record.result.studentNumber,
-              studentName: record.result.studentName,
-              values: [
-                for (final cell in record.result.cells)
-                  FieldValue(
-                    field: cell.field,
-                    // Unconfirmed sheets report only values the app accepted.
-                    value: record.confirmed || cell.accepted
-                        ? cell.value
-                        : null,
-                    region: cell.region,
-                  ),
-              ],
-              outcomes: record.result.outcomes,
-              confirmed: record.confirmed,
-            ),
-        ],
-      );
-      final name = [
-        exam.info.courseCode ?? 'sinav',
-        exam.info.examKind,
-        if (exam.info.group != null) 'grup-${exam.info.group}',
-      ].whereType<String>().join('-');
-      final file = File('${(await getTemporaryDirectory()).path}/$name.xlsx');
-      await file.writeAsBytes(bytes, flush: true);
+      final file = await writeExamExcel(exam);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
@@ -197,6 +172,7 @@ class _ExamPageState extends State<ExamPage> {
                     exam: exam,
                     reading: _reading,
                     onScan: _scan,
+                    onLive: _scanLive,
                   ),
                   child: const Text('Kâğıtlar'),
                 ),
@@ -219,11 +195,13 @@ class _SheetsTab extends StatelessWidget {
     required this.exam,
     required this.reading,
     required this.onScan,
+    required this.onLive,
   });
 
   final ExamEntry exam;
   final bool reading;
   final void Function(ImageSource) onScan;
+  final VoidCallback onLive;
 
   @override
   Widget build(BuildContext context) {
@@ -238,8 +216,8 @@ class _SheetsTab extends StatelessWidget {
             Expanded(
               child: ShadButton(
                 enabled: !reading,
-                leading: const Icon(LucideIcons.camera, size: 16),
-                onPressed: () => onScan(ImageSource.camera),
+                leading: const Icon(LucideIcons.scanLine, size: 16),
+                onPressed: onLive,
                 child: const Text('Kâğıt tara'),
               ),
             ),

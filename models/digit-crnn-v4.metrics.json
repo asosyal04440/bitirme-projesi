@@ -1,0 +1,395 @@
+{
+  "model": "digit-crnn-v4",
+  "trainer_version": "1.0.0",
+  "onnx_sha256": "fab63d3c9c1c0480867c652c2e639a8352ea578b7da8339024d270d3f4f262a4",
+  "onnx_bytes": 5687591,
+  "parameters": 1421581,
+  "alphabet": "0123456789.~",
+  "data": {
+    "train": [
+      "data\\synthetic\\train-v3\\shard-1",
+      "data\\synthetic\\train-v3\\shard-10",
+      "data\\synthetic\\train-v3\\shard-11",
+      "data\\synthetic\\train-v3\\shard-12",
+      "data\\synthetic\\train-v3\\shard-2",
+      "data\\synthetic\\train-v3\\shard-3",
+      "data\\synthetic\\train-v3\\shard-4",
+      "data\\synthetic\\train-v3\\shard-5",
+      "data\\synthetic\\train-v3\\shard-6",
+      "data\\synthetic\\train-v3\\shard-7",
+      "data\\synthetic\\train-v3\\shard-8",
+      "data\\synthetic\\train-v3\\shard-9"
+    ],
+    "real_strings": [
+      "data\\raw\\cvl\\strings-train\\train"
+    ],
+    "validation": [
+      "data\\synthetic\\eval-v2\\shard-1"
+    ],
+    "test": [
+      "data\\synthetic\\eval-v2\\shard-2"
+    ],
+    "corpus": "synthetic İnönü sheets; NOT a real-sheet benchmark",
+    "digit_sources": [
+      "emnist-digits+cvl-single-train",
+      "mnist+emnist-digits+usps-test"
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 5.9901,
+      "validation_exact_match": 0.01
+    },
+    {
+      "epoch": 2,
+      "loss": 1.9603,
+      "validation_exact_match": 0.5525
+    },
+    {
+      "epoch": 3,
+      "loss": 0.5164,
+      "validation_exact_match": 0.7208
+    },
+    {
+      "epoch": 4,
+      "loss": 0.3747,
+      "validation_exact_match": 0.6167
+    },
+    {
+      "epoch": 5,
+      "loss": 0.3044,
+      "validation_exact_match": 0.7083
+    },
+    {
+      "epoch": 6,
+      "loss": 0.2539,
+      "validation_exact_match": 0.735
+    },
+    {
+      "epoch": 7,
+      "loss": 0.2271,
+      "validation_exact_match": 0.81
+    },
+    {
+      "epoch": 8,
+      "loss": 0.2012,
+      "validation_exact_match": 0.7767
+    },
+    {
+      "epoch": 9,
+      "loss": 0.1912,
+      "validation_exact_match": 0.7908
+    },
+    {
+      "epoch": 10,
+      "loss": 0.1771,
+      "validation_exact_match": 0.7967
+    },
+    {
+      "epoch": 11,
+      "loss": 0.1604,
+      "validation_exact_match": 0.8258
+    },
+    {
+      "epoch": 12,
+      "loss": 0.149,
+      "validation_exact_match": 0.7642
+    },
+    {
+      "epoch": 13,
+      "loss": 0.1431,
+      "validation_exact_match": 0.8408
+    },
+    {
+      "epoch": 14,
+      "loss": 0.1356,
+      "validation_exact_match": 0.8075
+    },
+    {
+      "epoch": 15,
+      "loss": 0.1265,
+      "validation_exact_match": 0.8275
+    },
+    {
+      "epoch": 16,
+      "loss": 0.108,
+      "validation_exact_match": 0.8458
+    },
+    {
+      "epoch": 17,
+      "loss": 0.1011,
+      "validation_exact_match": 0.84
+    },
+    {
+      "epoch": 18,
+      "loss": 0.0931,
+      "validation_exact_match": 0.8342
+    },
+    {
+      "epoch": 19,
+      "loss": 0.0867,
+      "validation_exact_match": 0.8308
+    },
+    {
+      "epoch": 20,
+      "loss": 0.0788,
+      "validation_exact_match": 0.8367
+    },
+    {
+      "epoch": 21,
+      "loss": 0.07,
+      "validation_exact_match": 0.8775
+    },
+    {
+      "epoch": 22,
+      "loss": 0.0675,
+      "validation_exact_match": 0.8558
+    },
+    {
+      "epoch": 23,
+      "loss": 0.0621,
+      "validation_exact_match": 0.8542
+    },
+    {
+      "epoch": 24,
+      "loss": 0.0537,
+      "validation_exact_match": 0.8575
+    },
+    {
+      "epoch": 25,
+      "loss": 0.0505,
+      "validation_exact_match": 0.845
+    },
+    {
+      "epoch": 26,
+      "loss": 0.0445,
+      "validation_exact_match": 0.8608
+    },
+    {
+      "epoch": 27,
+      "loss": 0.043,
+      "validation_exact_match": 0.8758
+    },
+    {
+      "epoch": 28,
+      "loss": 0.0384,
+      "validation_exact_match": 0.8717
+    },
+    {
+      "epoch": 29,
+      "loss": 0.0359,
+      "validation_exact_match": 0.8758
+    },
+    {
+      "epoch": 30,
+      "loss": 0.0334,
+      "validation_exact_match": 0.8308
+    },
+    {
+      "epoch": 31,
+      "loss": 0.0332,
+      "validation_exact_match": 0.8692
+    },
+    {
+      "epoch": 32,
+      "loss": 0.0313,
+      "validation_exact_match": 0.88
+    },
+    {
+      "epoch": 33,
+      "loss": 0.0308,
+      "validation_exact_match": 0.8767
+    },
+    {
+      "epoch": 34,
+      "loss": 0.0304,
+      "validation_exact_match": 0.8725
+    },
+    {
+      "epoch": 35,
+      "loss": 0.0289,
+      "validation_exact_match": 0.8633
+    }
+  ],
+  "selected_threshold": {
+    "value": null,
+    "target_accuracy": 0.99,
+    "chosen_on": "validation",
+    "test_at_threshold": null
+  },
+  "validation": {
+    "count": 1200,
+    "score": {
+      "count": 800,
+      "exact_match": 0.9513,
+      "character_error_rate": 0.027
+    },
+    "total": {
+      "count": 200,
+      "exact_match": 0.885,
+      "character_error_rate": 0.0506
+    },
+    "number": {
+      "count": 200,
+      "exact_match": 0.59,
+      "character_error_rate": 0.0656
+    },
+    "all": {
+      "count": 1200,
+      "exact_match": 0.88,
+      "character_error_rate": 0.0494
+    },
+    "correction_marker": {
+      "recall": 0.8571,
+      "false_alarm_rate": 0.0
+    },
+    "blank_detection": {
+      "accuracy": 1.0,
+      "count": 30
+    },
+    "confidence": [
+      {
+        "threshold": 0.5,
+        "coverage": 0.9642,
+        "accepted_exact_match": 0.9041,
+        "accepted_errors": 111
+      },
+      {
+        "threshold": 0.6,
+        "coverage": 0.9008,
+        "accepted_exact_match": 0.9214,
+        "accepted_errors": 85
+      },
+      {
+        "threshold": 0.7,
+        "coverage": 0.8308,
+        "accepted_exact_match": 0.9388,
+        "accepted_errors": 61
+      },
+      {
+        "threshold": 0.8,
+        "coverage": 0.7525,
+        "accepted_exact_match": 0.9457,
+        "accepted_errors": 49
+      },
+      {
+        "threshold": 0.85,
+        "coverage": 0.7133,
+        "accepted_exact_match": 0.9498,
+        "accepted_errors": 43
+      },
+      {
+        "threshold": 0.9,
+        "coverage": 0.6658,
+        "accepted_exact_match": 0.9562,
+        "accepted_errors": 35
+      },
+      {
+        "threshold": 0.95,
+        "coverage": 0.6042,
+        "accepted_exact_match": 0.9738,
+        "accepted_errors": 19
+      },
+      {
+        "threshold": 0.98,
+        "coverage": 0.5267,
+        "accepted_exact_match": 0.9826,
+        "accepted_errors": 11
+      },
+      {
+        "threshold": 0.99,
+        "coverage": 0.49,
+        "accepted_exact_match": 0.9813,
+        "accepted_errors": 11
+      }
+    ]
+  },
+  "test": {
+    "count": 1200,
+    "score": {
+      "count": 800,
+      "exact_match": 0.94,
+      "character_error_rate": 0.0356
+    },
+    "total": {
+      "count": 200,
+      "exact_match": 0.86,
+      "character_error_rate": 0.063
+    },
+    "number": {
+      "count": 200,
+      "exact_match": 0.65,
+      "character_error_rate": 0.052
+    },
+    "all": {
+      "count": 1200,
+      "exact_match": 0.8783,
+      "character_error_rate": 0.0471
+    },
+    "correction_marker": {
+      "recall": 0.902,
+      "false_alarm_rate": 0.0009
+    },
+    "blank_detection": {
+      "accuracy": 1.0,
+      "count": 35
+    },
+    "confidence": [
+      {
+        "threshold": 0.5,
+        "coverage": 0.9733,
+        "accepted_exact_match": 0.8921,
+        "accepted_errors": 126
+      },
+      {
+        "threshold": 0.6,
+        "coverage": 0.8958,
+        "accepted_exact_match": 0.9153,
+        "accepted_errors": 91
+      },
+      {
+        "threshold": 0.7,
+        "coverage": 0.8233,
+        "accepted_exact_match": 0.9372,
+        "accepted_errors": 62
+      },
+      {
+        "threshold": 0.8,
+        "coverage": 0.7625,
+        "accepted_exact_match": 0.9508,
+        "accepted_errors": 45
+      },
+      {
+        "threshold": 0.85,
+        "coverage": 0.7292,
+        "accepted_exact_match": 0.9554,
+        "accepted_errors": 39
+      },
+      {
+        "threshold": 0.9,
+        "coverage": 0.6875,
+        "accepted_exact_match": 0.9612,
+        "accepted_errors": 32
+      },
+      {
+        "threshold": 0.95,
+        "coverage": 0.6225,
+        "accepted_exact_match": 0.9759,
+        "accepted_errors": 18
+      },
+      {
+        "threshold": 0.98,
+        "coverage": 0.5467,
+        "accepted_exact_match": 0.9832,
+        "accepted_errors": 11
+      },
+      {
+        "threshold": 0.99,
+        "coverage": 0.4933,
+        "accepted_exact_match": 0.9899,
+        "accepted_errors": 6
+      }
+    ]
+  }
+}

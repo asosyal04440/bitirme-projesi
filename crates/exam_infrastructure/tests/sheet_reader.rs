@@ -36,7 +36,7 @@ fn analyzer() -> TemplateSheetAnalyzer {
     let template =
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap();
-    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap();
+    let recognizer = CellRecognizer::load(root().join("../../models/digit-crnn-v4.onnx")).unwrap();
     let maximum_scores: BTreeMap<QuestionId, ScoreValue> =
         [("S1", "20"), ("S2", "30"), ("S3", "25"), ("S4", "25")]
             .into_iter()
@@ -51,7 +51,7 @@ fn analyzer() -> TemplateSheetAnalyzer {
         template,
         recognizer,
         maximum_scores,
-        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
+        ModelVersion::new("digit-crnn-v4", "4").unwrap(),
     )
     .unwrap()
 }
@@ -227,9 +227,9 @@ fn a_reader_built_from_the_word_file_finds_the_same_cells() {
     let analyzer = TemplateSheetAnalyzer::for_imported_exam(
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap(),
-        CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap(),
+        CellRecognizer::load(root().join("../../models/digit-crnn-v4.onnx")).unwrap(),
         &imported_exam(),
-        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
+        ModelVersion::new("digit-crnn-v4", "4").unwrap(),
     )
     .unwrap();
     for label in labels() {
@@ -272,9 +272,135 @@ fn an_incomplete_import_cannot_build_a_reader() {
     let result = TemplateSheetAnalyzer::for_imported_exam(
         SheetTemplate::load(root().join("../../tools/synthetic/templates/inonu-final-a.json"))
             .unwrap(),
-        CellRecognizer::load(root().join("../../models/digit-crnn-v3.onnx")).unwrap(),
+        CellRecognizer::load(root().join("../../models/digit-crnn-v4.onnx")).unwrap(),
         &missing_points,
-        ModelVersion::new("digit-crnn-v3", "3").unwrap(),
+        ModelVersion::new("digit-crnn-v4", "4").unwrap(),
     );
     assert!(result.is_err());
+}
+
+/// The photo moved by `(dx, dy)` pixels, as the next camera frame of a hand-held phone.
+fn shifted(photo: &image::RgbImage, dx: i64, dy: i64) -> image::RgbImage {
+    let mut frame =
+        image::RgbImage::from_pixel(photo.width(), photo.height(), image::Rgb([90, 90, 90]));
+    image::imageops::overlay(&mut frame, photo, dx, dy);
+    frame
+}
+
+fn score_texts(sheet: &exam_infrastructure::sheet::SheetReading) -> Vec<String> {
+    sheet
+        .fields
+        .iter()
+        .filter(|f| f.field_key.starts_with("question:") || f.field_key == "declared_total")
+        .map(|f| f.reading.as_ref().unwrap().text.clone())
+        .collect()
+}
+
+#[test]
+fn a_moving_sheet_is_tracked_between_camera_frames() {
+    let analyzer = analyzer();
+    for label in labels() {
+        let photo = image::load_from_memory(&photo_bytes(&label))
+            .unwrap()
+            .to_rgb8();
+        let first = analyzer.locate(&photo, None);
+        assert!(first.found() && !first.tracked, "{}", label["sample_id"]);
+
+        let next = shifted(&photo, 14, -9);
+        let tracked = analyzer.locate(&next, Some(&first.page_quad));
+        assert!(
+            tracked.found() && tracked.tracked,
+            "{}: {}",
+            label["sample_id"],
+            tracked.registration_score
+        );
+        let before = analyzer.read_at(&photo, &first).unwrap();
+        let after = analyzer.read_at(&next, &tracked).unwrap();
+        // Every cell is still found where it now is (only the matched top of
+        // the page is constrained, so the page corners themselves may drift).
+        for cell in label["cells"].as_array().unwrap() {
+            let key = cell["field_key"].as_str().unwrap();
+            let field = after.fields.iter().find(|f| f.field_key == key).unwrap();
+            let expected = bounds(
+                cell["quad"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|p| (p[0].as_f64().unwrap() + 14.0, p[1].as_f64().unwrap() - 9.0)),
+            );
+            let overlap = iou(bounds(field.quad.iter().map(|p| (p.x, p.y))), expected);
+            assert!(
+                overlap > 0.6,
+                "{} {key}: IoU {overlap:.2}",
+                label["sample_id"]
+            );
+        }
+        assert_eq!(score_texts(&after), score_texts(&before));
+    }
+}
+
+#[test]
+fn tracking_falls_back_to_a_full_search_when_the_sheet_is_elsewhere() {
+    let analyzer = analyzer();
+    let label = &labels()[0];
+    let photo = image::load_from_memory(&photo_bytes(label))
+        .unwrap()
+        .to_rgb8();
+    let far_away = [
+        exam_infrastructure::vision::Point::new(0.0, 0.0),
+        exam_infrastructure::vision::Point::new(40.0, 0.0),
+        exam_infrastructure::vision::Point::new(40.0, 50.0),
+        exam_infrastructure::vision::Point::new(0.0, 50.0),
+    ];
+    let located = analyzer.locate(&photo, Some(&far_away));
+    assert!(located.found() && !located.tracked);
+}
+
+#[test]
+fn a_close_up_of_the_top_of_the_sheet_is_read() {
+    let analyzer = analyzer();
+    for label in labels() {
+        let photo = image::load_from_memory(&photo_bytes(&label))
+            .unwrap()
+            .to_rgb8();
+        // Only the header and the Soru-PÇ table, held closer to the camera.
+        let page = analyzer.locate(&photo, None).page_quad;
+        let top = page.iter().map(|p| p.y).fold(f64::MAX, f64::min).max(0.0);
+        let bottom = top + 0.45 * (page[3].y - page[0].y);
+        let (y0, height) = (top as u32, (bottom - top) as u32);
+        let crop = image::imageops::crop_imm(&photo, 0, y0, photo.width(), height).to_image();
+        let scale = 1.5;
+        let close_up = image::imageops::resize(
+            &crop,
+            (f64::from(crop.width()) * scale) as u32,
+            (f64::from(crop.height()) * scale) as u32,
+            image::imageops::FilterType::Triangle,
+        );
+
+        let sheet = analyzer.read_sheet(&close_up).unwrap();
+        assert!(
+            sheet.page_found,
+            "{}: {}",
+            label["sample_id"], sheet.registration_score
+        );
+        for cell in label["cells"].as_array().unwrap() {
+            let key = cell["field_key"].as_str().unwrap();
+            if !(key.starts_with("question:") || key == "declared_total") {
+                continue;
+            }
+            let field = sheet.fields.iter().find(|f| f.field_key == key).unwrap();
+            let expected = bounds(cell["quad"].as_array().unwrap().iter().map(|p| {
+                (
+                    p[0].as_f64().unwrap() * scale,
+                    (p[1].as_f64().unwrap() - f64::from(y0)) * scale,
+                )
+            }));
+            let overlap = iou(bounds(field.quad.iter().map(|p| (p.x, p.y))), expected);
+            assert!(
+                overlap > 0.55,
+                "{} {key}: IoU {overlap:.2}",
+                label["sample_id"]
+            );
+        }
+    }
 }

@@ -232,7 +232,7 @@ class BundledAssets {
     return _cache ??= BundledAssets._(
       await rootBundle.loadString('assets/inonu-final-a.json'),
       (await rootBundle.load('assets/inonu-final-a.png')).buffer.asUint8List(),
-      (await rootBundle.load('assets/digit-crnn-v3.onnx')).buffer.asUint8List(),
+      (await rootBundle.load('assets/digit-crnn-v4.onnx')).buffer.asUint8List(),
     );
   }
 }

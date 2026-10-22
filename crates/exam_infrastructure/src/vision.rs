@@ -653,6 +653,17 @@ impl Registrar {
         }
     }
 
+    /// Follows a page found in an earlier camera frame: only refines from the
+    /// previous outline instead of searching the whole frame, so it is several
+    /// times faster than [`Registrar::register`]. The caller falls back to a
+    /// full search when the score drops.
+    pub fn track(&self, photo: &RgbImage, previous: &[Point; 4]) -> ([Point; 4], f64) {
+        let coarse_map = DarknessMap::new(photo, 240);
+        let fine_map = DarknessMap::new(photo, 480);
+        let start = Self::refine(&self.coarse, &coarse_map, *previous, &[4.0, 2.0, 1.0]).0;
+        Self::refine(&self.fine, &fine_map, start, &[2.0, 1.0, 0.5])
+    }
+
     /// Best page outline (photo pixels) and its correlation in [-1, 1].
     pub fn register(&self, photo: &RgbImage, candidates: &[[Point; 4]]) -> ([Point; 4], f64) {
         let (width, height) = (f64::from(photo.width()), f64::from(photo.height()));
@@ -665,16 +676,26 @@ impl Registrar {
             .iter()
             .map(|quad| (self.tiny.score(&tiny_map, quad), *quad))
             .collect();
-        for fill in [0.62, 0.68, 0.74, 0.8, 0.86, 0.92, 0.98] {
+        // Fills above 1 are close-ups of the top of the sheet (the matched
+        // part), e.g. the phone held sideways over the header and the Soru-PÇ
+        // table; the rest of the page then lies outside the frame.
+        for fill in [
+            0.62, 0.68, 0.74, 0.8, 0.86, 0.92, 0.98, 1.1, 1.25, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4,
+        ] {
             let page_h = fill * height.min(width / self.aspect);
             let page_w = page_h * self.aspect;
+            let base_y = if fill > 1.0 {
+                page_h / 2.0
+            } else {
+                height / 2.0
+            };
             for degrees in [-9.0_f64, -6.0, -3.0, 0.0, 3.0, 6.0, 9.0] {
                 let (sin, cos) = degrees.to_radians().sin_cos();
                 for i in -4..=4 {
                     for j in -4..=4 {
                         let center = Point::new(
                             width / 2.0 + f64::from(i) * 0.04 * width,
-                            height / 2.0 + f64::from(j) * 0.04 * height,
+                            base_y + f64::from(j) * 0.04 * height,
                         );
                         let quad = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)].map(
                             |(u, v): (f64, f64)| {

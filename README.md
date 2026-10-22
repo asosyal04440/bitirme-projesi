@@ -26,7 +26,7 @@ Supporting tools (Python):
 - `tools/synthetic`: generator of synthetic filled İnönü sheets (photos, field crops, golden data),
   because no real filled sheets are available.
 - `tools/recognizer`: training (GPU), ONNX export and real-handwriting evaluation of the digit
-  recognizer (`models/digit-crnn-v3.onnx`).
+  recognizer (`models/digit-crnn-v4.onnx`), and its comparison with ready-made OCR models.
 
 ## How a sheet is read
 
@@ -41,9 +41,10 @@ Supporting tools (Python):
    rule, roster near-matches) and sends anything uncertain to review.
 
 On real handwriting — the CVL Digit Strings evaluation set, 4,687 numbers written by 181 people
-whose writing was never used for training — the recognizer reads 83.1% of the 5–7 digit numbers
-exactly, with a character error rate of 3.2% (the first, MNIST-trained model: 28.6%). See
-`tools/recognizer/README.md`.
+whose writing was never used for training — the recognizer reads 83.0% of the 5–7 digit numbers
+exactly, with a character error rate of 3.2% (the first, MNIST-trained model: 24.9%). On the same
+test, ready-made models do much worse: PaddleOCR's mobile recogniser 39.1%, Microsoft's TrOCR
+(handwritten) 1.0%. See `tools/recognizer/README.md`.
 
 End-to-end on 200 synthetic photos with the reader built from the Word file (MNIST digits from
 writers never used in training, roster of 193): scores 88.0% exact, student identity 84.8%, 95.9% of
@@ -56,7 +57,7 @@ synthetic-data results, not an accuracy claim for real sheets.
 cargo build --release -p exam-cli
 target/release/exam-cli import tools/synthetic/templates/inonu-final-a.docx
 target/release/exam-cli evaluate --template tools/synthetic/templates/inonu-final-a.json \
-    --model models/digit-crnn-v3.onnx --exam tools/synthetic/templates/inonu-final-a.docx --max-scores S3=25,S4=25 \
+    --model models/digit-crnn-v4.onnx --exam tools/synthetic/templates/inonu-final-a.docx --max-scores S3=25,S4=25 \
     --roster-from-labels --out data/synthetic/e2e/report data/synthetic/e2e/shard-*
 python tools/benchmark/evaluate.py --golden data/synthetic/e2e/report/golden.json \
     --predictions data/synthetic/e2e/report/predictions.json
@@ -74,6 +75,16 @@ kept in SQLite; corrected cells are also stored with their crops as training dat
 recognizer. "Excel" exports grades, PÇ and question analysis (`rust_xlsxwriter`) and shares the
 file. Everything runs on the device. "Örnek sınavla dene" uses a bundled synthetic sample, so the
 app can be shown without paper.
+
+**Live scanning.** "Kâğıt tara" keeps the camera open: the instructor shows one sheet after
+another, the Soru-PÇ table is outlined on the preview, and each sheet is saved with a green tick
+(amber when a value needs checking) as soon as it is read, without taking photos. The sheet found
+in one frame is tracked in the next (about 20 ms instead of a 180 ms full search), the readings of
+consecutive frames are combined (agreeing frames raise the confidence), and a sheet stays saved
+while it is in view; the next one is recognised by its different student number. The Excel report
+is rewritten after every saved sheet. On the Android emulator a tracked frame takes about 140 ms
+and a sheet is saved 0.2–0.9 s after it comes into view. Holding the phone sideways over the top
+of the sheet (header and table only) also works.
 
 ```text
 cd mobile
