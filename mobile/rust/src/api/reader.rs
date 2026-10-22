@@ -99,6 +99,18 @@ pub struct ExamReader {
     roster: Option<StudentRoster>,
     sessions: Mutex<InMemorySessionRepository>,
     pub(crate) live: Mutex<crate::live::LiveState>,
+    /// The last photo or camera frame and what was found in it.
+    pub(crate) last_seen: Mutex<Option<crate::diagnostics::Seen>>,
+}
+
+/// What the reader saw in the last photo or camera frame, to share when a
+/// sheet is not read as expected.
+pub struct Diagnostic {
+    /// The picture with the page (blue), the Soru-PÇ table (green) and every
+    /// read cell (green, amber or red by confidence) drawn on it.
+    pub image_png: Vec<u8>,
+    /// Registration score and every reading with its confidence.
+    pub report: String,
 }
 
 fn reason_key(reason: &ReviewReason) -> &'static str {
@@ -197,6 +209,7 @@ impl ExamReader {
             roster,
             sessions: Mutex::new(InMemorySessionRepository::default()),
             live: Mutex::new(crate::live::LiveState::default()),
+            last_seen: Mutex::new(None),
         })
     }
 
@@ -212,7 +225,44 @@ impl ExamReader {
             .context("fotoğraf okunamadı")?
             .to_rgb8();
         let sheet = self.analyzer.read_sheet(&rgb).map_err(|e| anyhow!("{e}"))?;
-        self.sheet_result(sheet_id, &rgb, &sheet, true)
+        let result = self.sheet_result(sheet_id, &rgb, &sheet, true);
+        let located = exam_infrastructure::sheet::Located {
+            page_quad: sheet.page_quad,
+            registration_score: sheet.registration_score,
+            tracked: false,
+        };
+        self.remember(crate::diagnostics::Seen {
+            source: "fotoğraf",
+            page_quad: Some(sheet.page_quad),
+            registration_score: sheet.registration_score,
+            table: self.analyzer.table_outline(&located),
+            reading: Some(sheet),
+            image: rgb,
+        });
+        result
+    }
+
+    pub(crate) fn remember(&self, seen: crate::diagnostics::Seen) {
+        if let Ok(mut last) = self.last_seen.lock() {
+            *last = Some(seen);
+        }
+    }
+
+    /// What was seen in the last photo or camera frame: the picture with the
+    /// located page, table and cells drawn on it, and a text report. `None`
+    /// before anything was read.
+    pub fn last_diagnostic(&self) -> anyhow::Result<Option<Diagnostic>> {
+        let last = self
+            .last_seen
+            .lock()
+            .map_err(|_| anyhow!("diagnostics are poisoned"))?;
+        let Some(seen) = last.as_ref() else {
+            return Ok(None);
+        };
+        Ok(Some(Diagnostic {
+            image_png: png(&crate::diagnostics::annotated(seen))?,
+            report: crate::diagnostics::report(seen, "digit-crnn-v4"),
+        }))
     }
 
     /// The result for a sheet read from `rgb` (a photo or a camera frame),

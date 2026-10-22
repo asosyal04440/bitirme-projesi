@@ -58,6 +58,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CameraFrame dco_decode_box_autoadd_camera_frame(dynamic raw);
 
   @protected
+  Diagnostic dco_decode_box_autoadd_diagnostic(dynamic raw);
+
+  @protected
   SheetResult dco_decode_box_autoadd_sheet_result(dynamic raw);
 
   @protected
@@ -65,6 +68,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CellResult dco_decode_cell_result(dynamic raw);
+
+  @protected
+  Diagnostic dco_decode_diagnostic(dynamic raw);
 
   @protected
   ExamInfo dco_decode_exam_info(dynamic raw);
@@ -136,6 +142,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  Diagnostic? dco_decode_opt_box_autoadd_diagnostic(dynamic raw);
+
+  @protected
   SheetResult? dco_decode_opt_box_autoadd_sheet_result(dynamic raw);
 
   @protected
@@ -202,6 +211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CameraFrame sse_decode_box_autoadd_camera_frame(SseDeserializer deserializer);
 
   @protected
+  Diagnostic sse_decode_box_autoadd_diagnostic(SseDeserializer deserializer);
+
+  @protected
   SheetResult sse_decode_box_autoadd_sheet_result(SseDeserializer deserializer);
 
   @protected
@@ -209,6 +221,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CellResult sse_decode_cell_result(SseDeserializer deserializer);
+
+  @protected
+  Diagnostic sse_decode_diagnostic(SseDeserializer deserializer);
 
   @protected
   ExamInfo sse_decode_exam_info(SseDeserializer deserializer);
@@ -288,6 +303,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  Diagnostic? sse_decode_opt_box_autoadd_diagnostic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SheetResult? sse_decode_opt_box_autoadd_sheet_result(
     SseDeserializer deserializer,
   );
@@ -365,6 +385,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_diagnostic(
+    Diagnostic self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_sheet_result(
     SheetResult self,
     SseSerializer serializer,
@@ -375,6 +401,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_cell_result(CellResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_diagnostic(Diagnostic self, SseSerializer serializer);
 
   @protected
   void sse_encode_exam_info(ExamInfo self, SseSerializer serializer);
@@ -477,6 +506,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_diagnostic(
+    Diagnostic? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_sheet_result(

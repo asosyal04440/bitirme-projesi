@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../app_state.dart';
+import '../diagnostic_share.dart';
 import '../review_labels.dart';
 import '../src/rust/api/reader.dart';
 import '../storage.dart';
@@ -207,6 +208,12 @@ class _SheetReviewPageState extends State<SheetReviewPage> {
           style: theme.textTheme.large,
         ),
         actions: [
+          // Right after reading, what the reader saw can be shared (field tests).
+          if (widget.fresh)
+            ShadIconButton.ghost(
+              icon: const Icon(LucideIcons.bug, size: 18),
+              onPressed: () => shareDiagnostic(widget.exam),
+            ),
           if (!widget.fresh)
             ShadIconButton.ghost(
               icon: const Icon(LucideIcons.trash2, size: 18),

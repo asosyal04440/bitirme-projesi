@@ -1,4 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The camera plugin asks for the microphone; the app never records sound. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <application
         android:label="Sınav Okuyucu"
         android:name="${applicationName}"

@@ -81,7 +81,16 @@ fn update(
 
 fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::Result<ScanUpdate> {
     let located = reader.analyzer.locate(rgb, state.previous.as_ref());
+    let mut seen = crate::diagnostics::Seen {
+        image: rgb.clone(),
+        source: "kamera",
+        page_quad: Some(located.page_quad),
+        registration_score: located.registration_score,
+        table: reader.analyzer.table_outline(&located),
+        reading: None,
+    };
     if !located.found() {
+        reader.remember(seen);
         state.misses += 1;
         if state.misses >= LOST_AFTER {
             state.previous = None;
@@ -107,6 +116,8 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
         .analyzer
         .read_at(rgb, &located)
         .map_err(|e| anyhow!("{e}"))?;
+    seen.reading = Some(reading.clone());
+    reader.remember(seen);
     // A fresh search, or a clearly different student number, means another
     // sheet: its frames must not be mixed with the previous sheet's.
     let fused_number = fuse_readings(&state.recent).map(|f| number_text(&f));
@@ -518,6 +529,33 @@ mod tests {
         assert_eq!(rgb.dimensions(), (1, 2));
         assert_eq!(rgb.get_pixel(0, 0).0, [255, 0, 0]);
         assert_eq!(rgb.get_pixel(0, 1).0, [0, 0, 255]);
+    }
+
+    #[test]
+    fn the_last_frame_can_be_shared_as_a_diagnostic() {
+        let reader = reader();
+        assert!(reader.last_diagnostic().unwrap().is_none());
+        reader.scan_frame(empty_frame()).unwrap();
+        let empty = reader.last_diagnostic().unwrap().unwrap();
+        assert!(
+            empty.report.contains("Kâğıt bulundu: hayır"),
+            "{}",
+            empty.report
+        );
+
+        reader.scan_frame(frame(&sheet(1), 0, 0)).unwrap();
+        let found = reader.last_diagnostic().unwrap().unwrap();
+        assert!(
+            found.report.contains("Kâğıt bulundu: evet"),
+            "{}",
+            found.report
+        );
+        assert!(found.report.contains("question:1.earned_score"));
+        let picture = image::load_from_memory(&found.image_png).unwrap();
+        assert!(picture.width().max(picture.height()) <= 1600);
+        if let Ok(path) = std::env::var("DIAGNOSTIC_PNG") {
+            std::fs::write(path, &found.image_png).unwrap();
+        }
     }
 
     #[test]

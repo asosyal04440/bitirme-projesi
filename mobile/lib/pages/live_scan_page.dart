@@ -9,6 +9,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app_state.dart';
+import '../diagnostic_share.dart';
 import '../excel_export.dart';
 import '../src/rust/api/camera.dart';
 import '../src/rust/api/reader.dart';
@@ -244,6 +245,7 @@ class _LiveScanPageState extends State<LiveScanPage>
                   '${widget.exam.info.courseCode ?? widget.exam.title} · '
                   '${widget.exam.label}',
               count: _saved.length,
+              onDiagnostic: () => shareDiagnostic(widget.exam),
               onExcel: _saved.isEmpty && widget.exam.sheets.isEmpty
                   ? null
                   : _shareExcel,
@@ -331,10 +333,18 @@ class _TablePainter extends CustomPainter {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, required this.count, this.onExcel});
+  const _TopBar({
+    required this.title,
+    required this.count,
+    required this.onDiagnostic,
+    this.onExcel,
+  });
 
   final String title;
   final int count;
+
+  /// Shares the current frame with what was found in it (field tests).
+  final VoidCallback onDiagnostic;
   final VoidCallback? onExcel;
 
   @override
@@ -360,7 +370,15 @@ class _TopBar extends StatelessWidget {
               ),
             ),
             _Pill(text: '$count kâğıt'),
-            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Tanı bilgisi paylaş',
+              icon: const Icon(
+                LucideIcons.bug,
+                color: Colors.white70,
+                size: 20,
+              ),
+              onPressed: onDiagnostic,
+            ),
             ShadButton.secondary(
               size: ShadButtonSize.sm,
               enabled: onExcel != null,

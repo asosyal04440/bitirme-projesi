@@ -9,7 +9,7 @@ import 'exam.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `sheet_result`, `verified`
+// These functions are ignored because they are not marked as `pub`: `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `remember`, `sheet_result`, `verified`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Precomputed`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `analyze`
 
@@ -30,6 +30,11 @@ abstract class ExamReader implements RustOpaqueInterface {
   /// An Excel workbook for the exam: one row per sheet, the class result per
   /// PÇ and per question, and the exam details.
   Future<Uint8List> exportExcel({required List<ReportSheet> sheets});
+
+  /// What was seen in the last photo or camera frame: the picture with the
+  /// located page, table and cells drawn on it, and a text report. `None`
+  /// before anything was read.
+  Future<Diagnostic?> lastDiagnostic();
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   /// Builds a reader for one exam. `template_*` and `model_onnx` come from
@@ -123,6 +128,30 @@ class CellResult {
           accepted == other.accepted &&
           region == other.region &&
           cropPng == other.cropPng;
+}
+
+/// What the reader saw in the last photo or camera frame, to share when a
+/// sheet is not read as expected.
+class Diagnostic {
+  /// The picture with the page (blue), the Soru-PÇ table (green) and every
+  /// read cell (green, amber or red by confidence) drawn on it.
+  final Uint8List imagePng;
+
+  /// Registration score and every reading with its confidence.
+  final String report;
+
+  const Diagnostic({required this.imagePng, required this.report});
+
+  @override
+  int get hashCode => imagePng.hashCode ^ report.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Diagnostic &&
+          runtimeType == other.runtimeType &&
+          imagePng == other.imagePng &&
+          report == other.report;
 }
 
 /// A checked value of one field, e.g. `S2` = `17.5`, with the normalised

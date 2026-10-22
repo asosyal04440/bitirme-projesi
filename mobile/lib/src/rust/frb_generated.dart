@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1997804237;
+  int get rustContentHash => -705681388;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -94,6 +94,10 @@ abstract class RustLibApi extends BaseApi {
   Future<Uint8List> crateApiReaderExamReaderExportExcel({
     required ExamReader that,
     required List<ReportSheet> sheets,
+  });
+
+  Future<Diagnostic?> crateApiReaderExamReaderLastDiagnostic({
+    required ExamReader that,
   });
 
   Future<ExamReader> crateApiReaderExamReaderNew({
@@ -247,6 +251,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<Diagnostic?> crateApiReaderExamReaderLastDiagnostic({
+    required ExamReader that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_diagnostic,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReaderExamReaderLastDiagnosticConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderLastDiagnosticConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_last_diagnostic",
+        argNames: ["that"],
+      );
+
+  @override
   Future<ExamReader> crateApiReaderExamReaderNew({
     required String templateJson,
     required List<int> templatePng,
@@ -268,7 +308,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -323,7 +363,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -354,7 +394,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -390,7 +430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -420,7 +460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -448,7 +488,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -526,6 +566,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Diagnostic dco_decode_box_autoadd_diagnostic(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_diagnostic(raw);
+  }
+
+  @protected
   SheetResult dco_decode_box_autoadd_sheet_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_sheet_result(raw);
@@ -560,6 +606,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       accepted: dco_decode_bool(arr[4]),
       region: dco_decode_list_prim_f_32_strict(arr[5]),
       cropPng: dco_decode_list_prim_u_8_strict(arr[6]),
+    );
+  }
+
+  @protected
+  Diagnostic dco_decode_diagnostic(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Diagnostic(
+      imagePng: dco_decode_list_prim_u_8_strict(arr[0]),
+      report: dco_decode_String(arr[1]),
     );
   }
 
@@ -742,6 +800,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  Diagnostic? dco_decode_opt_box_autoadd_diagnostic(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_diagnostic(raw);
   }
 
   @protected
@@ -935,6 +999,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Diagnostic sse_decode_box_autoadd_diagnostic(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_diagnostic(deserializer));
+  }
+
+  @protected
   SheetResult sse_decode_box_autoadd_sheet_result(
     SseDeserializer deserializer,
   ) {
@@ -978,6 +1048,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       region: var_region,
       cropPng: var_cropPng,
     );
+  }
+
+  @protected
+  Diagnostic sse_decode_diagnostic(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_imagePng = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_report = sse_decode_String(deserializer);
+    return Diagnostic(imagePng: var_imagePng, report: var_report);
   }
 
   @protected
@@ -1240,6 +1318,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Diagnostic? sse_decode_opt_box_autoadd_diagnostic(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_diagnostic(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SheetResult? sse_decode_opt_box_autoadd_sheet_result(
     SseDeserializer deserializer,
   ) {
@@ -1451,6 +1542,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_diagnostic(
+    Diagnostic self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_diagnostic(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_sheet_result(
     SheetResult self,
     SseSerializer serializer,
@@ -1479,6 +1579,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.accepted, serializer);
     sse_encode_list_prim_f_32_strict(self.region, serializer);
     sse_encode_list_prim_u_8_strict(self.cropPng, serializer);
+  }
+
+  @protected
+  void sse_encode_diagnostic(Diagnostic self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_8_strict(self.imagePng, serializer);
+    sse_encode_String(self.report, serializer);
   }
 
   @protected
@@ -1713,6 +1820,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_diagnostic(
+    Diagnostic? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_diagnostic(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_sheet_result(
     SheetResult? self,
     SseSerializer serializer,
@@ -1857,6 +1977,12 @@ class ExamReaderImpl extends RustOpaque implements ExamReader {
       .instance
       .api
       .crateApiReaderExamReaderExportExcel(that: this, sheets: sheets);
+
+  /// What was seen in the last photo or camera frame: the picture with the
+  /// located page, table and cells drawn on it, and a text report. `None`
+  /// before anything was read.
+  Future<Diagnostic?> lastDiagnostic() =>
+      RustLib.instance.api.crateApiReaderExamReaderLastDiagnostic(that: this);
 
   /// Reads one photographed sheet. Scanning the same `sheet_id` again
   /// replaces the earlier reading.
