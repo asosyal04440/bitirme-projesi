@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'definition_json.dart';
+import 'src/rust/api/definition.dart';
 import 'src/rust/api/exam.dart';
 import 'src/rust/api/reader.dart';
+import 'src/rust/api/scanner.dart';
 import 'storage.dart';
 
 /// One exam the instructor added, with its sheets.
@@ -44,6 +47,20 @@ class ExamEntry {
 
   static Future<ExamReader> _createReader(StoredExam stored) async {
     final assets = await BundledAssets.load();
+    final maximumScores = [
+      for (final e in stored.maximums.entries)
+        MaximumScore(question: e.key, value: e.value),
+    ];
+    if (stored.definition != null) {
+      return ExamReader.fromDefinition(
+        templateJson: assets.templateJson,
+        templatePng: assets.templatePng,
+        modelOnnx: assets.model,
+        definition: definitionFromJson(stored.definition!),
+        maximumScores: maximumScores,
+        roster: stored.roster,
+      );
+    }
     return ExamReader.newInstance(
       templateJson: assets.templateJson,
       templatePng: assets.templatePng,
@@ -108,7 +125,7 @@ class AppState extends ChangeNotifier {
       ..clear()
       ..addAll([for (final c in await storage.courses()) CourseEntry(c)]);
     for (final stored in await storage.exams()) {
-      final info = await inspectExam(docx: stored.docx);
+      final info = await examInfo(stored);
       final entry = ExamEntry(stored: stored, info: info);
       entry.sheets.addAll(await storage.sheets(stored.id));
       var course = courses.where((c) => c.id == stored.courseId).firstOrNull;
@@ -121,6 +138,75 @@ class AppState extends ChangeNotifier {
     }
     correctionCount = await storage.correctionCount();
     notifyListeners();
+  }
+
+  /// What the app shows for a stored exam, from its Word file or from the
+  /// definition recognised on the sheet.
+  static Future<ExamInfo> examInfo(StoredExam stored) async =>
+      stored.definition != null
+      ? definitionInfo(definition: definitionFromJson(stored.definition!))
+      : await inspectExam(docx: stored.docx);
+
+  /// The saved exam a recognised sheet belongs to: same course code, kind,
+  /// group and term (fields that could not be read are not compared).
+  ExamEntry? examFor(ExamDefinition definition) {
+    final code = definition.courseCode;
+    if (code == null) return null;
+    final course = courses
+        .where((c) => c.code == normalizeCourseCode(code))
+        .firstOrNull;
+    bool same(String? a, String? b) => a == null || b == null || a == b;
+    return course?.exams
+        .where(
+          (e) =>
+              same(e.info.examKind, definition.examKind) &&
+              same(e.info.group, definition.group) &&
+              same(e.info.academicYear, definition.academicYear) &&
+              same(e.info.term, definition.term),
+        )
+        .firstOrNull;
+  }
+
+  /// Saves an exam recognised on its first sheet, under its course (created
+  /// from the course code when new). `definition` carries the instructor's
+  /// outcomes and maximum scores.
+  Future<ExamEntry> createDetectedExam(ExamDefinition definition) async {
+    final course = await _courseFor(
+      definition.courseCode ?? 'DİĞER',
+      definition.courseName,
+    );
+    final stored = StoredExam(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      courseId: course.id,
+      createdAt: DateTime.now(),
+      docx: Uint8List(0),
+      maximums: const {},
+      roster: const [],
+      definition: definitionToJson(definition),
+    );
+    final entry = ExamEntry(stored: stored, info: await examInfo(stored));
+    await entry
+        .reader(); // fails here, before saving, if the exam is incomplete
+    await storage.insertExam(stored);
+    course.exams.insert(0, entry);
+    notifyListeners();
+    return entry;
+  }
+
+  SheetScanner? _scanner;
+
+  /// Recognises the exam on a sheet shown to the camera; built on first use
+  /// (it loads the printed-text model).
+  Future<SheetScanner> scanner() async {
+    if (_scanner != null) return _scanner!;
+    final assets = await BundledAssets.load();
+    return _scanner = await SheetScanner.newInstance(
+      templateJson: assets.templateJson,
+      templatePng: assets.templatePng,
+      ocrModel: (await rootBundle.load('assets/ppocr-v4-rec.onnx')).buffer
+          .asUint8List(),
+      ocrKeys: await rootBundle.loadString('assets/ppocr-v4-rec.keys.txt'),
+    );
   }
 
   Future<CourseEntry> _courseFor(String code, String? name) async {

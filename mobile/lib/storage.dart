@@ -29,6 +29,7 @@ class StoredExam {
     required this.docx,
     required this.maximums,
     required this.roster,
+    this.definition,
   });
 
   final String id;
@@ -37,9 +38,15 @@ class StoredExam {
   /// assigns them to a course.
   final String? courseId;
   final DateTime createdAt;
+
+  /// The exam's Word file; empty for an exam recognised on the sheet.
   final Uint8List docx;
   final Map<String, String> maximums;
   final List<RosterStudent> roster;
+
+  /// The exam as recognised on the sheet (see `definition_json.dart`);
+  /// null for an exam added from its Word file.
+  final Map<String, dynamic>? definition;
 }
 
 /// A read sheet; `confirmed` once the instructor checked every value.
@@ -88,7 +95,7 @@ class Storage {
     final directory = await getDatabasesPath();
     final db = await openDatabase(
       '$directory/sinav_okuyucu.db',
-      version: 2,
+      version: 3,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onUpgrade: (db, from, _) async {
         if (from < 2) {
@@ -97,6 +104,9 @@ class Storage {
             'ALTER TABLE exams ADD COLUMN course_id TEXT '
             'REFERENCES courses(id) ON DELETE CASCADE',
           );
+        }
+        if (from < 3) {
+          await db.execute('ALTER TABLE exams ADD COLUMN definition TEXT');
         }
       },
       onCreate: (db, _) async {
@@ -108,7 +118,8 @@ class Storage {
             created_at INTEGER NOT NULL,
             docx BLOB NOT NULL,
             maximums TEXT NOT NULL,
-            roster TEXT NOT NULL
+            roster TEXT NOT NULL,
+            definition TEXT
           )''');
         await db.execute('''
           CREATE TABLE sheets (
@@ -194,6 +205,7 @@ class Storage {
     'roster': jsonEncode([
       for (final s in exam.roster) {'number': s.number, 'name': s.name},
     ]),
+    'definition': exam.definition == null ? null : jsonEncode(exam.definition),
   });
 
   Future<List<StoredExam>> exams() async {
@@ -217,6 +229,10 @@ class Storage {
                 name: s['name'] as String,
               ),
           ],
+          definition: row['definition'] == null
+              ? null
+              : jsonDecode(row['definition']! as String)
+                    as Map<String, dynamic>,
         ),
     ];
   }

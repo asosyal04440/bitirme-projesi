@@ -28,6 +28,7 @@
 // Section: imports
 
 use crate::api::reader::*;
+use crate::api::scanner::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -40,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -705681388;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 237816475;
 
 // Section: executor
 
@@ -199,6 +200,56 @@ fn wire__crate__api__reader__ExamReader_export_excel_impl(
                         let output_ok = crate::api::reader::ExamReader::export_excel(
                             &*api_that_guard,
                             api_sheets,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__reader__ExamReader_from_definition_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ExamReader_from_definition",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_template_json = <String>::sse_decode(&mut deserializer);
+            let api_template_png = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_model_onnx = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_definition =
+                <crate::api::definition::ExamDefinition>::sse_decode(&mut deserializer);
+            let api_maximum_scores =
+                <Vec<crate::api::reader::MaximumScore>>::sse_decode(&mut deserializer);
+            let api_roster =
+                <Vec<crate::api::reader::RosterStudent>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::reader::ExamReader::from_definition(
+                            api_template_json,
+                            api_template_png,
+                            api_model_onnx,
+                            api_definition,
+                            api_maximum_scores,
+                            api_roster,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -468,6 +519,237 @@ fn wire__crate__api__reader__ExamReader_scan_frame_impl(
         },
     )
 }
+fn wire__crate__api__scanner__SheetScanner_detect_frame_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "SheetScanner_detect_frame",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>,
+            >>::sse_decode(&mut deserializer);
+            let api_frame = <crate::api::camera::CameraFrame>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::scanner::SheetScanner::detect_frame(
+                            &*api_that_guard,
+                            api_frame,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__scanner__SheetScanner_new_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "SheetScanner_new",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_template_json = <String>::sse_decode(&mut deserializer);
+            let api_template_png = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_ocr_model = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_ocr_keys = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::scanner::SheetScanner::new(
+                            api_template_json,
+                            api_template_png,
+                            api_ocr_model,
+                            api_ocr_keys,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__scanner__SheetScanner_reset_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "SheetScanner_reset",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::scanner::SheetScanner::reset(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__scanner__SheetScanner_warm_up_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "SheetScanner_warm_up",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok =
+                            crate::api::scanner::SheetScanner::warm_up(&*api_that_guard)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__definition__definition_info_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "definition_info",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_definition =
+                <crate::api::definition::ExamDefinition>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                (move || {
+                    let output_ok = crate::api::definition::definition_info(&api_definition)?;
+                    std::result::Result::Ok(output_ok)
+                })(),
+            )
+        },
+    )
+}
 fn wire__crate__api__init_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -543,6 +825,9 @@ fn wire__crate__api__exam__inspect_exam_impl(
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>
 );
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>
+);
 
 // Section: dart2rust
 
@@ -564,8 +849,28 @@ impl SseDecode for ExamReader {
     }
 }
 
+impl SseDecode for SheetScanner {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
 impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -629,6 +934,43 @@ impl SseDecode for crate::api::reader::CellResult {
     }
 }
 
+impl SseDecode for crate::api::definition::DefinedQuestion {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_printedId = <String>::sse_decode(deserializer);
+        let mut var_outcomes = <Vec<String>>::sse_decode(deserializer);
+        let mut var_maximum = <Option<String>>::sse_decode(deserializer);
+        let mut var_left = <u32>::sse_decode(deserializer);
+        let mut var_width = <u32>::sse_decode(deserializer);
+        return crate::api::definition::DefinedQuestion {
+            printed_id: var_printedId,
+            outcomes: var_outcomes,
+            maximum: var_maximum,
+            left: var_left,
+            width: var_width,
+        };
+    }
+}
+
+impl SseDecode for crate::api::scanner::DetectUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_found = <bool>::sse_decode(deserializer);
+        let mut var_table = <Vec<f32>>::sse_decode(deserializer);
+        let mut var_definition =
+            <Option<crate::api::definition::ExamDefinition>>::sse_decode(deserializer);
+        let mut var_attempts = <u32>::sse_decode(deserializer);
+        let mut var_millis = <u32>::sse_decode(deserializer);
+        return crate::api::scanner::DetectUpdate {
+            found: var_found,
+            table: var_table,
+            definition: var_definition,
+            attempts: var_attempts,
+            millis: var_millis,
+        };
+    }
+}
+
 impl SseDecode for crate::api::reader::Diagnostic {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -637,6 +979,37 @@ impl SseDecode for crate::api::reader::Diagnostic {
         return crate::api::reader::Diagnostic {
             image_png: var_imagePng,
             report: var_report,
+        };
+    }
+}
+
+impl SseDecode for crate::api::definition::ExamDefinition {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_course = <Option<String>>::sse_decode(deserializer);
+        let mut var_courseCode = <Option<String>>::sse_decode(deserializer);
+        let mut var_courseName = <Option<String>>::sse_decode(deserializer);
+        let mut var_academicYear = <Option<String>>::sse_decode(deserializer);
+        let mut var_term = <Option<String>>::sse_decode(deserializer);
+        let mut var_examKind = <Option<String>>::sse_decode(deserializer);
+        let mut var_group = <Option<String>>::sse_decode(deserializer);
+        let mut var_questions =
+            <Vec<crate::api::definition::DefinedQuestion>>::sse_decode(deserializer);
+        let mut var_pageWidth = <u32>::sse_decode(deserializer);
+        let mut var_totalLeft = <u32>::sse_decode(deserializer);
+        let mut var_totalWidth = <u32>::sse_decode(deserializer);
+        return crate::api::definition::ExamDefinition {
+            course: var_course,
+            course_code: var_courseCode,
+            course_name: var_courseName,
+            academic_year: var_academicYear,
+            term: var_term,
+            exam_kind: var_examKind,
+            group: var_group,
+            questions: var_questions,
+            page_width: var_pageWidth,
+            total_left: var_totalLeft,
+            total_width: var_totalWidth,
         };
     }
 }
@@ -768,6 +1141,20 @@ impl SseDecode for Vec<crate::api::reader::CellResult> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::reader::CellResult>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::definition::DefinedQuestion> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::definition::DefinedQuestion>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -925,6 +1312,19 @@ impl SseDecode for Option<crate::api::reader::Diagnostic> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::reader::Diagnostic>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::definition::ExamDefinition> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::definition::ExamDefinition>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -1111,24 +1511,40 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        4 => wire__crate__api__reader__ExamReader_last_diagnostic_impl(
+        4 => wire__crate__api__reader__ExamReader_from_definition_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__reader__ExamReader_new_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__reader__ExamReader_process_photo_impl(
+        5 => wire__crate__api__reader__ExamReader_last_diagnostic_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => {
+        6 => wire__crate__api__reader__ExamReader_new_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__reader__ExamReader_process_photo_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        9 => {
             wire__crate__api__reader__ExamReader_scan_frame_impl(port, ptr, rust_vec_len, data_len)
         }
-        9 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__scanner__SheetScanner_detect_frame_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        11 => wire__crate__api__scanner__SheetScanner_new_impl(port, ptr, rust_vec_len, data_len),
+        13 => {
+            wire__crate__api__scanner__SheetScanner_warm_up_impl(port, ptr, rust_vec_len, data_len)
+        }
+        15 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1142,7 +1558,9 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => wire__crate__api__reader__ExamReader_exam_info_impl(ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__reader__ExamReader_reset_scan_impl(ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__reader__ExamReader_reset_scan_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__scanner__SheetScanner_reset_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__definition__definition_info_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1160,6 +1578,21 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ExamReader>> for ExamReader {
     fn into_into_dart(self) -> FrbWrapper<ExamReader> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<SheetScanner> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
+            .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<SheetScanner> {}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SheetScanner>> for SheetScanner {
+    fn into_into_dart(self) -> FrbWrapper<SheetScanner> {
         self.into()
     }
 }
@@ -1215,6 +1648,54 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::reader::CellResult>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::definition::DefinedQuestion {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.printed_id.into_into_dart().into_dart(),
+            self.outcomes.into_into_dart().into_dart(),
+            self.maximum.into_into_dart().into_dart(),
+            self.left.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::definition::DefinedQuestion
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::definition::DefinedQuestion>
+    for crate::api::definition::DefinedQuestion
+{
+    fn into_into_dart(self) -> crate::api::definition::DefinedQuestion {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::scanner::DetectUpdate {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.found.into_into_dart().into_dart(),
+            self.table.into_into_dart().into_dart(),
+            self.definition.into_into_dart().into_dart(),
+            self.attempts.into_into_dart().into_dart(),
+            self.millis.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::scanner::DetectUpdate
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::scanner::DetectUpdate>
+    for crate::api::scanner::DetectUpdate
+{
+    fn into_into_dart(self) -> crate::api::scanner::DetectUpdate {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::reader::Diagnostic {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1232,6 +1713,36 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::reader::Diagnostic>
     for crate::api::reader::Diagnostic
 {
     fn into_into_dart(self) -> crate::api::reader::Diagnostic {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::definition::ExamDefinition {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.course.into_into_dart().into_dart(),
+            self.course_code.into_into_dart().into_dart(),
+            self.course_name.into_into_dart().into_dart(),
+            self.academic_year.into_into_dart().into_dart(),
+            self.term.into_into_dart().into_dart(),
+            self.exam_kind.into_into_dart().into_dart(),
+            self.group.into_into_dart().into_dart(),
+            self.questions.into_into_dart().into_dart(),
+            self.page_width.into_into_dart().into_dart(),
+            self.total_left.into_into_dart().into_dart(),
+            self.total_width.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::definition::ExamDefinition
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::definition::ExamDefinition>
+    for crate::api::definition::ExamDefinition
+{
+    fn into_into_dart(self) -> crate::api::definition::ExamDefinition {
         self
     }
 }
@@ -1549,8 +2060,26 @@ impl SseEncode for ExamReader {
     }
 }
 
+impl SseEncode for SheetScanner {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+    }
+}
+
 impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1598,11 +2127,50 @@ impl SseEncode for crate::api::reader::CellResult {
     }
 }
 
+impl SseEncode for crate::api::definition::DefinedQuestion {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.printed_id, serializer);
+        <Vec<String>>::sse_encode(self.outcomes, serializer);
+        <Option<String>>::sse_encode(self.maximum, serializer);
+        <u32>::sse_encode(self.left, serializer);
+        <u32>::sse_encode(self.width, serializer);
+    }
+}
+
+impl SseEncode for crate::api::scanner::DetectUpdate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.found, serializer);
+        <Vec<f32>>::sse_encode(self.table, serializer);
+        <Option<crate::api::definition::ExamDefinition>>::sse_encode(self.definition, serializer);
+        <u32>::sse_encode(self.attempts, serializer);
+        <u32>::sse_encode(self.millis, serializer);
+    }
+}
+
 impl SseEncode for crate::api::reader::Diagnostic {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<u8>>::sse_encode(self.image_png, serializer);
         <String>::sse_encode(self.report, serializer);
+    }
+}
+
+impl SseEncode for crate::api::definition::ExamDefinition {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.course, serializer);
+        <Option<String>>::sse_encode(self.course_code, serializer);
+        <Option<String>>::sse_encode(self.course_name, serializer);
+        <Option<String>>::sse_encode(self.academic_year, serializer);
+        <Option<String>>::sse_encode(self.term, serializer);
+        <Option<String>>::sse_encode(self.exam_kind, serializer);
+        <Option<String>>::sse_encode(self.group, serializer);
+        <Vec<crate::api::definition::DefinedQuestion>>::sse_encode(self.questions, serializer);
+        <u32>::sse_encode(self.page_width, serializer);
+        <u32>::sse_encode(self.total_left, serializer);
+        <u32>::sse_encode(self.total_width, serializer);
     }
 }
 
@@ -1705,6 +2273,16 @@ impl SseEncode for Vec<crate::api::reader::CellResult> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::reader::CellResult>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::definition::DefinedQuestion> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::definition::DefinedQuestion>::sse_encode(item, serializer);
         }
     }
 }
@@ -1833,6 +2411,16 @@ impl SseEncode for Option<crate::api::reader::Diagnostic> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::reader::Diagnostic>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::definition::ExamDefinition> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::definition::ExamDefinition>::sse_encode(value, serializer);
         }
     }
 }
@@ -1969,6 +2557,7 @@ mod io {
 
     use super::*;
     use crate::api::reader::*;
+    use crate::api::scanner::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -1992,6 +2581,20 @@ mod io {
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>>::decrement_strong_count(ptr as _);
     }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_sinav_okuyucu_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>::increment_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_sinav_okuyucu_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>::decrement_strong_count(ptr as _);
+    }
 }
 #[cfg(not(target_family = "wasm"))]
 pub use io::*;
@@ -2006,6 +2609,7 @@ mod web {
 
     use super::*;
     use crate::api::reader::*;
+    use crate::api::scanner::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -2030,6 +2634,20 @@ mod web {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>>::decrement_strong_count(ptr as _);
+    }
+
+    #[wasm_bindgen]
+    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>::increment_strong_count(ptr as _);
+    }
+
+    #[wasm_bindgen]
+    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SheetScanner>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(target_family = "wasm")]

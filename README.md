@@ -76,6 +76,19 @@ recognizer. "Excel" exports grades, PÇ and question analysis (`rust_xlsxwriter`
 file. Everything runs on the device. "Örnek sınavla dene" uses a bundled synthetic sample, so the
 app can be shown without paper.
 
+**No set-up: the exam is recognised from the sheet.** "Kâğıt okut" on the home screen opens the
+camera; the first sheet shown is enough to set up the exam, without its Word file. The form is a
+university standard (the header and the rows of the Soru-PÇ table are always in the same place), so
+once the sheet is located the question columns are found from the table's printed vertical lines
+(any number of questions; the columns are fitted as an equally spaced layout snapped to the lines,
+robust to shadows and blur), and the printed texts — `(S1)-PÇ2` per column, the course code and
+name, the exam kind and term in the title, the group — are read with PaddleOCR's PP-OCRv4 mobile
+recognition model (`models/ppocr-v4-rec.onnx`, Apache-2.0, run with `tract` in Rust; 7 crops read in
+parallel, about 0.2 s per frame on a laptop). Fields are voted over consecutive frames and the exam is
+taken once each field agrees in two frames. The course is created from its code; the instructor only
+checks what was read and enters the maximum scores, which are not printed on the sheet. A sheet of an
+exam that is already saved goes straight to scanning. The Word import and the roster remain optional.
+
 **Live scanning.** "Kâğıt tara" keeps the camera open: the instructor shows one sheet after
 another, the Soru-PÇ table is outlined on the preview, and each sheet is saved with a green tick
 (amber when a value needs checking) as soon as it is read, without taking photos. The sheet found

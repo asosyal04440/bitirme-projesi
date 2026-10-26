@@ -32,7 +32,7 @@ pub struct ExamInfo {
 pub(crate) fn warning_text(warning: &ImportWarning) -> String {
     match warning {
         ImportWarning::MissingMaximumScore(id) => {
-            format!("S{id} için tam puan Word dosyasında bulunamadı; lütfen girin.")
+            format!("S{id} için tam puan kâğıtta yazmıyor; lütfen girin.")
         }
         ImportWarning::SummedSubQuestionPoints(id) => {
             format!("S{id} tam puanı alt şıkların puanları toplanarak bulundu; kontrol edin.")

@@ -11,6 +11,7 @@ void main() {
     await tester.pumpWidget(const SinavOkuyucuApp());
     await tester.pumpAndSettle();
     expect(find.text('Dersler'), findsOneWidget);
-    expect(find.text('Ders ekle'), findsOneWidget);
+    expect(find.text('Kâğıt okut'), findsOneWidget);
+    expect(find.text('Elle ders ekle'), findsOneWidget);
   });
 }

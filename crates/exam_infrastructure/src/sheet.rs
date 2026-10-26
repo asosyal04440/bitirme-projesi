@@ -50,6 +50,38 @@ struct TemplateFile {
     image: String,
     fields: BTreeMap<String, NormalizedBox>,
     questions: Vec<TemplateQuestion>,
+    #[serde(default)]
+    header: Option<HeaderBoxes>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HeaderBoxes {
+    title: NormalizedBox,
+    course: NormalizedBox,
+    #[serde(default)]
+    group: Option<NormalizedBox>,
+}
+
+/// Printed header texts of the form (template pixels), read to recognise
+/// the exam from the sheet itself.
+#[derive(Debug, Clone, Copy)]
+pub struct HeaderCells {
+    /// e.g. `2025 - 2026 EĞİTİM-ÖĞRETİM YILI BAHAR DÖNEMİ FİNAL SINAV KÂĞIDI`.
+    pub title: Rect,
+    /// The `Dersin Kodu ve Adı` value, e.g. `BİLM374-2022-YAPAY ZEKA`.
+    pub course: Rect,
+    /// The `-SINAV SORULARI -- GRUP A-` line, when the form has one.
+    pub group: Option<Rect>,
+}
+
+/// One question column of the `Soru-PÇ` table (template pixels).
+#[derive(Debug, Clone)]
+pub struct TableColumn {
+    pub id: QuestionId,
+    pub printed_id: String,
+    pub outcomes: Vec<LearningOutcomeId>,
+    pub left: f64,
+    pub right: f64,
 }
 
 #[derive(Debug)]
@@ -81,6 +113,7 @@ pub struct TemplateQuestionCell {
 pub struct SheetTemplate {
     pub template_id: String,
     pub questions: Vec<TemplateQuestionCell>,
+    header: Option<HeaderCells>,
     name_cell: Rect,
     number_cell: Rect,
     total_cell: Rect,
@@ -156,8 +189,14 @@ impl SheetTemplate {
         if questions.is_empty() {
             return Err(SheetError::Template("template has no questions".to_owned()));
         }
+        let header = file.header.as_ref().map(|h| HeaderCells {
+            title: rect(&h.title),
+            course: rect(&h.course),
+            group: h.group.as_ref().map(rect),
+        });
         let mut template = Self {
             template_id: file.template_id,
+            header,
             name_cell: field("student.name")?,
             number_cell: field("student.number")?,
             total_cell: field("declared_total")?,
@@ -181,36 +220,151 @@ impl SheetTemplate {
     /// Re-lays the `Soru-PÇ` table for an exam imported from its Word file:
     /// its questions, PÇ and column widths. The rows and the rest of the
     /// header are the same on every sheet of this form.
-    pub fn with_imported_exam(
-        mut self,
-        exam: &exam_import::ImportedExam,
-    ) -> Result<Self, SheetError> {
-        let first = self
-            .questions
-            .first()
-            .ok_or_else(|| SheetError::Template("template has no questions".to_owned()))?;
-        let (score_row, mapping_row) = (first.score_cell, first.mapping_cell);
+    pub fn with_imported_exam(self, exam: &exam_import::ImportedExam) -> Result<Self, SheetError> {
         let scale = self.size.0 as f64 / f64::from(exam.page_width_twips);
-        let column = |span: exam_import::ColumnSpan, row: Rect| Rect {
-            x: f64::from(span.left_twips) * scale,
-            width: f64::from(span.width_twips) * scale,
-            ..row
+        let span = |s: exam_import::ColumnSpan| {
+            (
+                f64::from(s.left_twips) * scale,
+                f64::from(s.left_twips + s.width_twips) * scale,
+            )
         };
-        self.questions = exam
+        let columns = exam
             .questions
             .iter()
-            .map(|q| TemplateQuestionCell {
-                id: q.id.clone(),
-                printed_id: q.printed_id.clone(),
-                outcomes: q.outcomes.clone(),
-                mapping_cell: column(q.score_column, mapping_row),
-                score_cell: column(q.score_column, score_row),
+            .map(|q| {
+                let (left, right) = span(q.score_column);
+                TableColumn {
+                    id: q.id.clone(),
+                    printed_id: q.printed_id.clone(),
+                    outcomes: q.outcomes.clone(),
+                    left,
+                    right,
+                }
             })
             .collect();
-        self.total_cell = column(exam.total_column, self.total_cell);
+        self.with_columns(columns, span(exam.total_column))
+    }
+
+    /// Re-lays the `Soru-PÇ` table with these question columns and the
+    /// `Not:` cell spanning `total` (template pixels, left and right).
+    pub fn with_columns(
+        mut self,
+        columns: Vec<TableColumn>,
+        total: (f64, f64),
+    ) -> Result<Self, SheetError> {
+        if columns.is_empty() {
+            return Err(SheetError::Template(
+                "the table has no questions".to_owned(),
+            ));
+        }
+        let rows = self.table_rows();
+        let cell = |(left, right): (f64, f64), (y, height): (f64, f64)| Rect {
+            x: left,
+            y,
+            width: right - left,
+            height,
+        };
+        self.questions = columns
+            .into_iter()
+            .map(|c| TemplateQuestionCell {
+                mapping_cell: cell((c.left, c.right), rows.mapping),
+                score_cell: cell((c.left, c.right), rows.score),
+                id: c.id,
+                printed_id: c.printed_id,
+                outcomes: c.outcomes,
+            })
+            .collect();
+        self.total_cell = cell(total, rows.total);
         self.rebuild_aligner();
         Ok(self)
     }
+
+    /// Template size in pixels (half the blank sheet image's resolution).
+    pub fn size(&self) -> (usize, usize) {
+        self.size
+    }
+
+    pub fn header(&self) -> Option<&HeaderCells> {
+        self.header.as_ref()
+    }
+
+    /// Rows of the `Soru-PÇ` table: they are the same on every sheet of the
+    /// form, only the number and width of the columns vary.
+    pub fn table_rows(&self) -> TableRows {
+        let first = &self.questions[0];
+        let row = |r: Rect| (r.y, r.height);
+        TableRows {
+            mapping: row(first.mapping_cell),
+            score: row(first.score_cell),
+            total: row(self.total_cell),
+            first_column: first.mapping_cell.x,
+        }
+    }
+
+    /// Finds the sheet in a photo or camera frame. With the outline found in
+    /// the previous frame it only tracks it, which is much faster; it falls
+    /// back to a full search when tracking loses the sheet.
+    pub fn locate(&self, photo: &image::RgbImage, previous: Option<&[Point; 4]>) -> Located {
+        if let Some(previous) = previous {
+            let (quad, score) = self.registrar.track(photo, previous);
+            if score >= MIN_REGISTRATION_SCORE {
+                return Located {
+                    page_quad: quad,
+                    registration_score: score,
+                    tracked: true,
+                };
+            }
+        }
+        let (w, h) = (f64::from(photo.width()), f64::from(photo.height()));
+        let frame = |inset: f64| {
+            Rect {
+                x: w * inset,
+                y: h * inset,
+                width: w * (1.0 - 2.0 * inset),
+                height: h * (1.0 - 2.0 * inset),
+            }
+            .corners()
+        };
+        let mut candidates: Vec<[Point; 4]> = detect_page(photo).into_iter().collect();
+        candidates.extend([frame(0.0), frame(0.06)]);
+        candidates.extend(previous.copied());
+        let (page_quad, registration_score) = self.registrar.register(photo, &candidates);
+        Located {
+            page_quad,
+            registration_score,
+            tracked: false,
+        }
+    }
+
+    /// Template pixels to photo pixels for a located sheet.
+    pub fn to_photo(&self, located: &Located) -> Option<Homography> {
+        let template_corners = Rect {
+            x: 0.0,
+            y: 0.0,
+            width: self.size.0 as f64,
+            height: self.size.1 as f64,
+        }
+        .corners();
+        Homography::from_points(&template_corners, &located.page_quad)
+    }
+
+    /// The `Soru-PÇ` table (mapping row, scores and total) in template pixels.
+    pub fn table_rect(&self) -> Rect {
+        self.questions
+            .iter()
+            .flat_map(|q| [q.mapping_cell, q.score_cell])
+            .fold(self.total_cell, |acc, c| acc.union(&c))
+    }
+}
+
+/// Vertical position `(y, height)` of each row of the `Soru-PÇ` table and the
+/// left edge of its first question column, in template pixels.
+#[derive(Debug, Clone, Copy)]
+pub struct TableRows {
+    pub mapping: (f64, f64),
+    pub score: (f64, f64),
+    pub total: (f64, f64),
+    pub first_column: f64,
 }
 
 /// What a cell of the sheet holds.
@@ -331,64 +485,21 @@ impl TemplateSheetAnalyzer {
         self.read_at(photo, &located)
     }
 
-    /// Finds the sheet in a photo or camera frame. With the outline found in
-    /// the previous frame it only tracks it, which is much faster; it falls
-    /// back to a full search when tracking loses the sheet.
+    /// Finds the sheet in a photo or camera frame; see [`SheetTemplate::locate`].
     pub fn locate(&self, photo: &image::RgbImage, previous: Option<&[Point; 4]>) -> Located {
-        if let Some(previous) = previous {
-            let (quad, score) = self.template.registrar.track(photo, previous);
-            if score >= MIN_REGISTRATION_SCORE {
-                return Located {
-                    page_quad: quad,
-                    registration_score: score,
-                    tracked: true,
-                };
-            }
-        }
-        let (w, h) = (f64::from(photo.width()), f64::from(photo.height()));
-        let frame = |inset: f64| {
-            Rect {
-                x: w * inset,
-                y: h * inset,
-                width: w * (1.0 - 2.0 * inset),
-                height: h * (1.0 - 2.0 * inset),
-            }
-            .corners()
-        };
-        let mut candidates: Vec<[Point; 4]> = detect_page(photo).into_iter().collect();
-        candidates.extend([frame(0.0), frame(0.06)]);
-        candidates.extend(previous.copied());
-        let (page_quad, registration_score) = self.template.registrar.register(photo, &candidates);
-        Located {
-            page_quad,
-            registration_score,
-            tracked: false,
-        }
+        self.template.locate(photo, previous)
     }
 
     /// Where the `Soru-PÇ` table (mapping row, scores and total) lies in the
     /// photo for a located sheet, for drawing it over the camera preview.
     pub fn table_outline(&self, located: &Located) -> Option<[Point; 4]> {
-        let to_photo = self.to_photo(located)?;
-        let t = &self.template;
-        let table = t
-            .questions
-            .iter()
-            .flat_map(|q| [q.mapping_cell, q.score_cell])
-            .fold(t.total_cell, |acc, c| acc.union(&c));
-        Some(table.corners().map(|p| to_photo.apply(p)))
-    }
-
-    fn to_photo(&self, located: &Located) -> Option<Homography> {
-        let (tw, th) = self.template.aligner.template_size();
-        let template_corners = Rect {
-            x: 0.0,
-            y: 0.0,
-            width: tw as f64,
-            height: th as f64,
-        }
-        .corners();
-        Homography::from_points(&template_corners, &located.page_quad)
+        let to_photo = self.template.to_photo(located)?;
+        Some(
+            self.template
+                .table_rect()
+                .corners()
+                .map(|p| to_photo.apply(p)),
+        )
     }
 
     /// Aligns and reads the cells of a sheet found with [`Self::locate`].
@@ -404,6 +515,7 @@ impl TemplateSheetAnalyzer {
             ..
         } = *located;
         let to_photo = self
+            .template
             .to_photo(located)
             .ok_or_else(|| AnalyzerError::Failed("degenerate page outline".to_owned()))?;
 

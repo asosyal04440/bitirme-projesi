@@ -4,8 +4,10 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/camera.dart';
+import 'api/definition.dart';
 import 'api/exam.dart';
 import 'api/reader.dart';
+import 'api/scanner.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -71,7 +73,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -705681388;
+  int get rustContentHash => 237816475;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -94,6 +96,15 @@ abstract class RustLibApi extends BaseApi {
   Future<Uint8List> crateApiReaderExamReaderExportExcel({
     required ExamReader that,
     required List<ReportSheet> sheets,
+  });
+
+  Future<ExamReader> crateApiReaderExamReaderFromDefinition({
+    required String templateJson,
+    required List<int> templatePng,
+    required List<int> modelOnnx,
+    required ExamDefinition definition,
+    required List<MaximumScore> maximumScores,
+    required List<RosterStudent> roster,
   });
 
   Future<Diagnostic?> crateApiReaderExamReaderLastDiagnostic({
@@ -122,6 +133,26 @@ abstract class RustLibApi extends BaseApi {
     required CameraFrame frame,
   });
 
+  Future<DetectUpdate> crateApiScannerSheetScannerDetectFrame({
+    required SheetScanner that,
+    required CameraFrame frame,
+  });
+
+  Future<SheetScanner> crateApiScannerSheetScannerNew({
+    required String templateJson,
+    required List<int> templatePng,
+    required List<int> ocrModel,
+    required String ocrKeys,
+  });
+
+  void crateApiScannerSheetScannerReset({required SheetScanner that});
+
+  Future<void> crateApiScannerSheetScannerWarmUp({required SheetScanner that});
+
+  ExamInfo crateApiDefinitionDefinitionInfo({
+    required ExamDefinition definition,
+  });
+
   Future<void> crateApiInitApp();
 
   Future<ExamInfo> crateApiExamInspectExam({required List<int> docx});
@@ -133,6 +164,14 @@ abstract class RustLibApi extends BaseApi {
   get rust_arc_decrement_strong_count_ExamReader;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ExamReaderPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SheetScanner;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SheetScanner;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SheetScannerPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -251,6 +290,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ExamReader> crateApiReaderExamReaderFromDefinition({
+    required String templateJson,
+    required List<int> templatePng,
+    required List<int> modelOnnx,
+    required ExamDefinition definition,
+    required List<MaximumScore> maximumScores,
+    required List<RosterStudent> roster,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(templateJson, serializer);
+          sse_encode_list_prim_u_8_loose(templatePng, serializer);
+          sse_encode_list_prim_u_8_loose(modelOnnx, serializer);
+          sse_encode_box_autoadd_exam_definition(definition, serializer);
+          sse_encode_list_maximum_score(maximumScores, serializer);
+          sse_encode_list_roster_student(roster, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReaderExamReaderFromDefinitionConstMeta,
+        argValues: [
+          templateJson,
+          templatePng,
+          modelOnnx,
+          definition,
+          maximumScores,
+          roster,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderFromDefinitionConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_from_definition",
+        argNames: [
+          "templateJson",
+          "templatePng",
+          "modelOnnx",
+          "definition",
+          "maximumScores",
+          "roster",
+        ],
+      );
+
+  @override
   Future<Diagnostic?> crateApiReaderExamReaderLastDiagnostic({
     required ExamReader that,
   }) {
@@ -265,7 +362,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -308,7 +405,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -363,7 +460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -394,7 +491,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -430,7 +527,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -452,6 +549,172 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DetectUpdate> crateApiScannerSheetScannerDetectFrame({
+    required SheetScanner that,
+    required CameraFrame frame,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+            that,
+            serializer,
+          );
+          sse_encode_box_autoadd_camera_frame(frame, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_detect_update,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScannerSheetScannerDetectFrameConstMeta,
+        argValues: [that, frame],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScannerSheetScannerDetectFrameConstMeta =>
+      const TaskConstMeta(
+        debugName: "SheetScanner_detect_frame",
+        argNames: ["that", "frame"],
+      );
+
+  @override
+  Future<SheetScanner> crateApiScannerSheetScannerNew({
+    required String templateJson,
+    required List<int> templatePng,
+    required List<int> ocrModel,
+    required String ocrKeys,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(templateJson, serializer);
+          sse_encode_list_prim_u_8_loose(templatePng, serializer);
+          sse_encode_list_prim_u_8_loose(ocrModel, serializer);
+          sse_encode_String(ocrKeys, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScannerSheetScannerNewConstMeta,
+        argValues: [templateJson, templatePng, ocrModel, ocrKeys],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScannerSheetScannerNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "SheetScanner_new",
+        argNames: ["templateJson", "templatePng", "ocrModel", "ocrKeys"],
+      );
+
+  @override
+  void crateApiScannerSheetScannerReset({required SheetScanner that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiScannerSheetScannerResetConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScannerSheetScannerResetConstMeta =>
+      const TaskConstMeta(debugName: "SheetScanner_reset", argNames: ["that"]);
+
+  @override
+  Future<void> crateApiScannerSheetScannerWarmUp({required SheetScanner that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScannerSheetScannerWarmUpConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScannerSheetScannerWarmUpConstMeta =>
+      const TaskConstMeta(
+        debugName: "SheetScanner_warm_up",
+        argNames: ["that"],
+      );
+
+  @override
+  ExamInfo crateApiDefinitionDefinitionInfo({
+    required ExamDefinition definition,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_exam_definition(definition, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_exam_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDefinitionDefinitionInfoConstMeta,
+        argValues: [definition],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDefinitionDefinitionInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "definition_info",
+        argNames: ["definition"],
+      );
+
+  @override
   Future<void> crateApiInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -460,7 +723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 15,
             port: port_,
           );
         },
@@ -488,7 +751,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 16,
             port: port_,
           );
         },
@@ -514,6 +777,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get rust_arc_decrement_strong_count_ExamReader => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader;
 
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SheetScanner => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SheetScanner => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -530,6 +801,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetScanner
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   ExamReader
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     dynamic raw,
@@ -539,12 +819,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetScanner
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   ExamReader
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ExamReaderImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SheetScanner
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -569,6 +867,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Diagnostic dco_decode_box_autoadd_diagnostic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_diagnostic(raw);
+  }
+
+  @protected
+  ExamDefinition dco_decode_box_autoadd_exam_definition(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_exam_definition(raw);
   }
 
   @protected
@@ -610,6 +914,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DefinedQuestion dco_decode_defined_question(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DefinedQuestion(
+      printedId: dco_decode_String(arr[0]),
+      outcomes: dco_decode_list_String(arr[1]),
+      maximum: dco_decode_opt_String(arr[2]),
+      left: dco_decode_u_32(arr[3]),
+      width: dco_decode_u_32(arr[4]),
+    );
+  }
+
+  @protected
+  DetectUpdate dco_decode_detect_update(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DetectUpdate(
+      found: dco_decode_bool(arr[0]),
+      table: dco_decode_list_prim_f_32_strict(arr[1]),
+      definition: dco_decode_opt_box_autoadd_exam_definition(arr[2]),
+      attempts: dco_decode_u_32(arr[3]),
+      millis: dco_decode_u_32(arr[4]),
+    );
+  }
+
+  @protected
   Diagnostic dco_decode_diagnostic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -618,6 +952,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return Diagnostic(
       imagePng: dco_decode_list_prim_u_8_strict(arr[0]),
       report: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  ExamDefinition dco_decode_exam_definition(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return ExamDefinition(
+      course: dco_decode_opt_String(arr[0]),
+      courseCode: dco_decode_opt_String(arr[1]),
+      courseName: dco_decode_opt_String(arr[2]),
+      academicYear: dco_decode_opt_String(arr[3]),
+      term: dco_decode_opt_String(arr[4]),
+      examKind: dco_decode_opt_String(arr[5]),
+      group: dco_decode_opt_String(arr[6]),
+      questions: dco_decode_list_defined_question(arr[7]),
+      pageWidth: dco_decode_u_32(arr[8]),
+      totalLeft: dco_decode_u_32(arr[9]),
+      totalWidth: dco_decode_u_32(arr[10]),
     );
   }
 
@@ -719,6 +1074,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DefinedQuestion> dco_decode_list_defined_question(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_defined_question).toList();
+  }
+
+  @protected
   List<FieldValue> dco_decode_list_field_value(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_field_value).toList();
@@ -806,6 +1167,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Diagnostic? dco_decode_opt_box_autoadd_diagnostic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_diagnostic(raw);
+  }
+
+  @protected
+  ExamDefinition? dco_decode_opt_box_autoadd_exam_definition(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_exam_definition(raw);
   }
 
   @protected
@@ -954,6 +1321,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetScanner
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   ExamReader
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     SseDeserializer deserializer,
@@ -966,12 +1345,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SheetScanner
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   ExamReader
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ExamReaderImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  SheetScanner
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SheetScannerImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1002,6 +1405,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Diagnostic sse_decode_box_autoadd_diagnostic(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_diagnostic(deserializer));
+  }
+
+  @protected
+  ExamDefinition sse_decode_box_autoadd_exam_definition(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_exam_definition(deserializer));
   }
 
   @protected
@@ -1051,11 +1462,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DefinedQuestion sse_decode_defined_question(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_printedId = sse_decode_String(deserializer);
+    var var_outcomes = sse_decode_list_String(deserializer);
+    var var_maximum = sse_decode_opt_String(deserializer);
+    var var_left = sse_decode_u_32(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    return DefinedQuestion(
+      printedId: var_printedId,
+      outcomes: var_outcomes,
+      maximum: var_maximum,
+      left: var_left,
+      width: var_width,
+    );
+  }
+
+  @protected
+  DetectUpdate sse_decode_detect_update(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_found = sse_decode_bool(deserializer);
+    var var_table = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_definition = sse_decode_opt_box_autoadd_exam_definition(
+      deserializer,
+    );
+    var var_attempts = sse_decode_u_32(deserializer);
+    var var_millis = sse_decode_u_32(deserializer);
+    return DetectUpdate(
+      found: var_found,
+      table: var_table,
+      definition: var_definition,
+      attempts: var_attempts,
+      millis: var_millis,
+    );
+  }
+
+  @protected
   Diagnostic sse_decode_diagnostic(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_imagePng = sse_decode_list_prim_u_8_strict(deserializer);
     var var_report = sse_decode_String(deserializer);
     return Diagnostic(imagePng: var_imagePng, report: var_report);
+  }
+
+  @protected
+  ExamDefinition sse_decode_exam_definition(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_course = sse_decode_opt_String(deserializer);
+    var var_courseCode = sse_decode_opt_String(deserializer);
+    var var_courseName = sse_decode_opt_String(deserializer);
+    var var_academicYear = sse_decode_opt_String(deserializer);
+    var var_term = sse_decode_opt_String(deserializer);
+    var var_examKind = sse_decode_opt_String(deserializer);
+    var var_group = sse_decode_opt_String(deserializer);
+    var var_questions = sse_decode_list_defined_question(deserializer);
+    var var_pageWidth = sse_decode_u_32(deserializer);
+    var var_totalLeft = sse_decode_u_32(deserializer);
+    var var_totalWidth = sse_decode_u_32(deserializer);
+    return ExamDefinition(
+      course: var_course,
+      courseCode: var_courseCode,
+      courseName: var_courseName,
+      academicYear: var_academicYear,
+      term: var_term,
+      examKind: var_examKind,
+      group: var_group,
+      questions: var_questions,
+      pageWidth: var_pageWidth,
+      totalLeft: var_totalLeft,
+      totalWidth: var_totalWidth,
+    );
   }
 
   @protected
@@ -1169,6 +1645,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <CellResult>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_cell_result(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DefinedQuestion> sse_decode_list_defined_question(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DefinedQuestion>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_defined_question(deserializer));
     }
     return ans_;
   }
@@ -1325,6 +1815,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_diagnostic(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ExamDefinition? sse_decode_opt_box_autoadd_exam_definition(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_exam_definition(deserializer));
     } else {
       return null;
     }
@@ -1496,6 +1999,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SheetScannerImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     ExamReader self,
     SseSerializer serializer,
@@ -1509,6 +2025,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SheetScannerImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     ExamReader self,
     SseSerializer serializer,
@@ -1516,6 +2045,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as ExamReaderImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SheetScannerImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -1551,6 +2093,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_exam_definition(
+    ExamDefinition self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_exam_definition(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_sheet_result(
     SheetResult self,
     SseSerializer serializer,
@@ -1582,10 +2133,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_defined_question(
+    DefinedQuestion self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.printedId, serializer);
+    sse_encode_list_String(self.outcomes, serializer);
+    sse_encode_opt_String(self.maximum, serializer);
+    sse_encode_u_32(self.left, serializer);
+    sse_encode_u_32(self.width, serializer);
+  }
+
+  @protected
+  void sse_encode_detect_update(DetectUpdate self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.found, serializer);
+    sse_encode_list_prim_f_32_strict(self.table, serializer);
+    sse_encode_opt_box_autoadd_exam_definition(self.definition, serializer);
+    sse_encode_u_32(self.attempts, serializer);
+    sse_encode_u_32(self.millis, serializer);
+  }
+
+  @protected
   void sse_encode_diagnostic(Diagnostic self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(self.imagePng, serializer);
     sse_encode_String(self.report, serializer);
+  }
+
+  @protected
+  void sse_encode_exam_definition(
+    ExamDefinition self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.course, serializer);
+    sse_encode_opt_String(self.courseCode, serializer);
+    sse_encode_opt_String(self.courseName, serializer);
+    sse_encode_opt_String(self.academicYear, serializer);
+    sse_encode_opt_String(self.term, serializer);
+    sse_encode_opt_String(self.examKind, serializer);
+    sse_encode_opt_String(self.group, serializer);
+    sse_encode_list_defined_question(self.questions, serializer);
+    sse_encode_u_32(self.pageWidth, serializer);
+    sse_encode_u_32(self.totalLeft, serializer);
+    sse_encode_u_32(self.totalWidth, serializer);
   }
 
   @protected
@@ -1671,6 +2264,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_cell_result(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_defined_question(
+    List<DefinedQuestion> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_defined_question(item, serializer);
     }
   }
 
@@ -1829,6 +2434,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_diagnostic(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_exam_definition(
+    ExamDefinition? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_exam_definition(self, serializer);
     }
   }
 
@@ -2009,4 +2627,40 @@ class ExamReaderImpl extends RustOpaque implements ExamReader {
       .instance
       .api
       .crateApiReaderExamReaderScanFrame(that: this, frame: frame);
+}
+
+@sealed
+class SheetScannerImpl extends RustOpaque implements SheetScanner {
+  // Not to be used by end users
+  SheetScannerImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SheetScannerImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_SheetScanner,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SheetScanner,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SheetScannerPtr,
+  );
+
+  /// Looks for a sheet in one camera frame and reads which exam it is.
+  Future<DetectUpdate> detectFrame({required CameraFrame frame}) => RustLib
+      .instance
+      .api
+      .crateApiScannerSheetScannerDetectFrame(that: this, frame: frame);
+
+  /// Forgets the sheet being read.
+  void reset() =>
+      RustLib.instance.api.crateApiScannerSheetScannerReset(that: this);
+
+  /// Prepares the text reader (builds its model plans), which takes a
+  /// while on a phone; call it in the background when the app starts so the
+  /// first sheet is recognised without that wait.
+  Future<void> warmUp() =>
+      RustLib.instance.api.crateApiScannerSheetScannerWarmUp(that: this);
 }

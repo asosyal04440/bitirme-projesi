@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -9,6 +11,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
   await appState.load();
+  // The printed-text reader takes a while to prepare on a phone: do it in
+  // the background so the first sheet is recognised without waiting.
+  unawaited(appState.scanner().then((s) => s.warmUp()).catchError((_) {}));
   runApp(const SinavOkuyucuApp());
 }
 
@@ -35,6 +40,10 @@ class SinavOkuyucuApp extends StatelessWidget {
         brightness: Brightness.dark,
         colorScheme: const ShadSlateColorScheme.dark(),
       ),
+      // Keep every screen above the system navigation bar: on newer Android
+      // versions apps are drawn edge to edge, under the bar's buttons.
+      builder: (context, child) =>
+          SafeArea(top: false, child: child ?? const SizedBox.shrink()),
       home: const CoursesPage(),
     );
   }

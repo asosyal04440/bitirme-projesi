@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../app_state.dart';
+import 'auto_scan_page.dart';
 import 'course_page.dart';
 
 /// Home: the instructor's courses. Exams and sheets are kept under them.
@@ -34,22 +35,33 @@ class CoursesPage extends StatelessWidget {
               Text('Dersler', style: theme.textTheme.h2),
               const SizedBox(height: 4),
               Text(
-                'Dersi ekleyin, sınavını Word dosyasından tanımlayın, kâğıtları tarayın.',
+                'Kâğıdı kameraya gösterin: ders, sınav ve soru–PÇ eşleşmeleri '
+                'kâğıttan okunur, puanlar kaydedilir.',
                 style: theme.textTheme.muted,
               ),
               const SizedBox(height: 20),
               ShadButton(
                 width: double.infinity,
+                size: ShadButtonSize.lg,
+                leading: const Icon(LucideIcons.scanLine, size: 18),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const AutoScanPage()),
+                ),
+                child: const Text('Kâğıt okut'),
+              ),
+              const SizedBox(height: 8),
+              ShadButton.ghost(
+                width: double.infinity,
                 leading: const Icon(LucideIcons.plus, size: 16),
                 onPressed: () => _addCourse(context),
-                child: const Text('Ders ekle'),
+                child: const Text('Elle ders ekle'),
               ),
               const SizedBox(height: 20),
               if (appState.courses.isEmpty)
                 ShadCard(
                   title: const Text('Henüz ders yok'),
                   description: const Text(
-                    'Ders kodunu girerek başlayın, örneğin BİLM374.',
+                    '“Kâğıt okut” ile ilk kâğıdı gösterin; ders ve sınav kendiliğinden eklenir.',
                   ),
                 )
               else

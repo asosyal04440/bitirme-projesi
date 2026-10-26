@@ -9,6 +9,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app_state.dart';
+import '../camera_feed.dart';
 import '../diagnostic_share.dart';
 import '../excel_export.dart';
 import '../src/rust/api/camera.dart';
@@ -33,10 +34,7 @@ class _LiveScanPageState extends State<LiveScanPage>
   static const _green = Color(0xFF16A34A);
   static const _amber = Color(0xFFD97706);
 
-  CameraController? _camera;
-  ExamReader? _reader;
-  String? _error;
-  bool _busy = false;
+  final _feed = CameraFeed();
 
   ScanUpdate? _update;
   final List<SheetRecord> _saved = [];
@@ -61,112 +59,24 @@ class _LiveScanPageState extends State<LiveScanPage>
     WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
     _tick.dispose();
-    _stopCamera();
+    _feed.stop();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive) {
-      _stopCamera();
-    } else if (state == AppLifecycleState.resumed && _camera == null) {
+      _feed.stop();
+    } else if (state == AppLifecycleState.resumed && _feed.controller == null) {
       _start();
     }
   }
 
   Future<void> _start() async {
-    try {
-      final reader = await widget.exam.reader();
-      reader.resetScan();
-      final cameras = await availableCameras();
-      final back = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
-      final camera = CameraController(
-        back,
-        ResolutionPreset.veryHigh,
-        enableAudio: false,
-        imageFormatGroup: defaultTargetPlatform == TargetPlatform.iOS
-            ? ImageFormatGroup.bgra8888
-            : ImageFormatGroup.yuv420,
-      );
-      await camera.initialize();
-      await camera.lockCaptureOrientation(DeviceOrientation.portraitUp);
-      if (!mounted) {
-        await camera.dispose();
-        return;
-      }
-      setState(() {
-        _reader = reader;
-        _camera = camera;
-        _error = null;
-      });
-      await camera.startImageStream(_onFrame);
-    } on CameraException catch (error) {
-      setState(
-        () => _error = error.code == 'CameraAccessDenied'
-            ? 'Kamera izni verilmedi. Ayarlar’dan izin verip tekrar deneyin.'
-            : 'Kamera açılamadı: ${error.description ?? error.code}',
-      );
-    } catch (error) {
-      setState(() => _error = 'Kamera açılamadı: $error');
-    }
-  }
-
-  Future<void> _stopCamera() async {
-    final camera = _camera;
-    _camera = null;
-    if (camera == null) return;
-    if (camera.value.isStreamingImages) {
-      await camera.stopImageStream();
-    }
-    await camera.dispose();
-  }
-
-  /// Clockwise rotation that turns the sensor image upright, also when the
-  /// phone is held sideways (the screen itself stays in portrait).
-  int get _rotation {
-    final camera = _camera!;
-    final device = switch (camera.value.deviceOrientation) {
-      DeviceOrientation.portraitUp => 0,
-      DeviceOrientation.landscapeLeft => 90,
-      DeviceOrientation.portraitDown => 180,
-      DeviceOrientation.landscapeRight => 270,
-    };
-    return (camera.description.sensorOrientation - device + 360) % 360;
-  }
-
-  /// How far the phone is turned from portrait, to draw the outline found in
-  /// the upright frame onto the portrait preview.
-  int get _deviceTurn =>
-      (_camera!.description.sensorOrientation - _rotation + 360) % 360;
-
-  void _onFrame(CameraImage image) {
-    final reader = _reader;
-    if (_busy || reader == null || _camera == null) return;
-    _busy = true;
-    final frame = CameraFrame(
-      width: image.width,
-      height: image.height,
-      format: image.format.group == ImageFormatGroup.bgra8888
-          ? FrameFormat.bgra8888
-          : FrameFormat.yuv420,
-      planes: [
-        for (final plane in image.planes)
-          FramePlane(
-            bytes: plane.bytes,
-            rowStride: plane.bytesPerRow,
-            pixelStride: plane.bytesPerPixel ?? 1,
-          ),
-      ],
-      rotation: _rotation,
-    );
-    reader
-        .scanFrame(frame: frame)
-        .then(_handle)
-        .catchError((Object error) => debugPrint('scan failed: $error'))
-        .whenComplete(() => _busy = false);
+    final reader = await widget.exam.reader();
+    reader.resetScan();
+    await _feed.start((frame) => reader.scanFrame(frame: frame).then(_handle));
+    if (mounted) setState(() {});
   }
 
   Future<void> _handle(ScanUpdate update) async {
@@ -204,7 +114,7 @@ class _LiveScanPageState extends State<LiveScanPage>
 
   @override
   Widget build(BuildContext context) {
-    final camera = _camera;
+    final camera = _feed.controller;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -212,14 +122,14 @@ class _LiveScanPageState extends State<LiveScanPage>
         body: Stack(
           fit: StackFit.expand,
           children: [
-            if (camera != null && camera.value.isInitialized)
+            if (camera != null && _feed.ready)
               Center(
                 child: CameraPreview(
                   camera,
                   child: CustomPaint(
-                    painter: _TablePainter(
+                    painter: TableOutlinePainter(
                       table: _update?.table ?? const [],
-                      turn: _deviceTurn,
+                      turn: _feed.deviceTurn,
                       color:
                           _update?.state == ScanState.saved ||
                               _update?.state == ScanState.alreadySaved
@@ -234,21 +144,26 @@ class _LiveScanPageState extends State<LiveScanPage>
                 child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Text(
-                    _error ?? 'Kamera açılıyor…',
+                    _feed.error ?? 'Kamera açılıyor…',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ),
               ),
-            _TopBar(
-              title:
-                  '${widget.exam.info.courseCode ?? widget.exam.title} · '
-                  '${widget.exam.label}',
-              count: _saved.length,
-              onDiagnostic: () => shareDiagnostic(widget.exam),
-              onExcel: _saved.isEmpty && widget.exam.sheets.isEmpty
-                  ? null
-                  : _shareExcel,
+            // Aligned, not stretched: the expanding stack would otherwise
+            // centre the bar's row vertically over the preview.
+            Align(
+              alignment: Alignment.topCenter,
+              child: _TopBar(
+                title:
+                    '${widget.exam.info.courseCode ?? widget.exam.title} · '
+                    '${widget.exam.label}',
+                count: _saved.length,
+                onDiagnostic: () => shareDiagnostic(widget.exam),
+                onExcel: _saved.isEmpty && widget.exam.sheets.isEmpty
+                    ? null
+                    : _shareExcel,
+              ),
             ),
             Align(
               alignment: Alignment.center,
@@ -281,9 +196,13 @@ class _LiveScanPageState extends State<LiveScanPage>
   }
 }
 
-/// The Soru-PÇ table outline over the preview.
-class _TablePainter extends CustomPainter {
-  _TablePainter({required this.table, required this.turn, required this.color});
+/// The Soru-PÇ table outline over the camera preview.
+class TableOutlinePainter extends CustomPainter {
+  TableOutlinePainter({
+    required this.table,
+    required this.turn,
+    required this.color,
+  });
 
   /// `[x0, y0, … x3, y3]` normalised to the upright frame.
   final List<double> table;
@@ -328,7 +247,7 @@ class _TablePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TablePainter old) =>
+  bool shouldRepaint(TableOutlinePainter old) =>
       !listEquals(old.table, table) || old.color != color || old.turn != turn;
 }
 

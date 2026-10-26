@@ -7,8 +7,10 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/camera.dart';
+import 'api/definition.dart';
 import 'api/exam.dart';
 import 'api/reader.dart';
+import 'api/scanner.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -29,6 +31,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   get rust_arc_decrement_strong_count_ExamReaderPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader;
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_SheetScannerPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -39,14 +45,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SheetScanner
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    dynamic raw,
+  );
+
+  @protected
   ExamReader
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     dynamic raw,
   );
 
   @protected
+  SheetScanner
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    dynamic raw,
+  );
+
+  @protected
   ExamReader
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+    dynamic raw,
+  );
+
+  @protected
+  SheetScanner
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
     dynamic raw,
   );
 
@@ -63,6 +87,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Diagnostic dco_decode_box_autoadd_diagnostic(dynamic raw);
 
   @protected
+  ExamDefinition dco_decode_box_autoadd_exam_definition(dynamic raw);
+
+  @protected
   SheetResult dco_decode_box_autoadd_sheet_result(dynamic raw);
 
   @protected
@@ -72,7 +99,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CellResult dco_decode_cell_result(dynamic raw);
 
   @protected
+  DefinedQuestion dco_decode_defined_question(dynamic raw);
+
+  @protected
+  DetectUpdate dco_decode_detect_update(dynamic raw);
+
+  @protected
   Diagnostic dco_decode_diagnostic(dynamic raw);
+
+  @protected
+  ExamDefinition dco_decode_exam_definition(dynamic raw);
 
   @protected
   ExamInfo dco_decode_exam_info(dynamic raw);
@@ -103,6 +139,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<CellResult> dco_decode_list_cell_result(dynamic raw);
+
+  @protected
+  List<DefinedQuestion> dco_decode_list_defined_question(dynamic raw);
 
   @protected
   List<FieldValue> dco_decode_list_field_value(dynamic raw);
@@ -145,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Diagnostic? dco_decode_opt_box_autoadd_diagnostic(dynamic raw);
+
+  @protected
+  ExamDefinition? dco_decode_opt_box_autoadd_exam_definition(dynamic raw);
 
   @protected
   SheetResult? dco_decode_opt_box_autoadd_sheet_result(dynamic raw);
@@ -192,14 +234,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SheetScanner
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ExamReader
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     SseDeserializer deserializer,
   );
 
   @protected
+  SheetScanner
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ExamReader
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SheetScanner
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
     SseDeserializer deserializer,
   );
 
@@ -216,6 +276,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Diagnostic sse_decode_box_autoadd_diagnostic(SseDeserializer deserializer);
 
   @protected
+  ExamDefinition sse_decode_box_autoadd_exam_definition(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SheetResult sse_decode_box_autoadd_sheet_result(SseDeserializer deserializer);
 
   @protected
@@ -225,7 +290,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CellResult sse_decode_cell_result(SseDeserializer deserializer);
 
   @protected
+  DefinedQuestion sse_decode_defined_question(SseDeserializer deserializer);
+
+  @protected
+  DetectUpdate sse_decode_detect_update(SseDeserializer deserializer);
+
+  @protected
   Diagnostic sse_decode_diagnostic(SseDeserializer deserializer);
+
+  @protected
+  ExamDefinition sse_decode_exam_definition(SseDeserializer deserializer);
 
   @protected
   ExamInfo sse_decode_exam_info(SseDeserializer deserializer);
@@ -256,6 +330,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<CellResult> sse_decode_list_cell_result(SseDeserializer deserializer);
+
+  @protected
+  List<DefinedQuestion> sse_decode_list_defined_question(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<FieldValue> sse_decode_list_field_value(SseDeserializer deserializer);
@@ -306,6 +385,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Diagnostic? sse_decode_opt_box_autoadd_diagnostic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ExamDefinition? sse_decode_opt_box_autoadd_exam_definition(
     SseDeserializer deserializer,
   );
 
@@ -362,6 +446,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     ExamReader self,
     SseSerializer serializer,
@@ -369,8 +460,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
     ExamReader self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    SheetScanner self,
     SseSerializer serializer,
   );
 
@@ -393,6 +498,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_exam_definition(
+    ExamDefinition self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_sheet_result(
     SheetResult self,
     SseSerializer serializer,
@@ -405,7 +516,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_cell_result(CellResult self, SseSerializer serializer);
 
   @protected
+  void sse_encode_defined_question(
+    DefinedQuestion self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_detect_update(DetectUpdate self, SseSerializer serializer);
+
+  @protected
   void sse_encode_diagnostic(Diagnostic self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_exam_definition(
+    ExamDefinition self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_exam_info(ExamInfo self, SseSerializer serializer);
@@ -437,6 +563,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_cell_result(
     List<CellResult> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_defined_question(
+    List<DefinedQuestion> self,
     SseSerializer serializer,
   );
 
@@ -516,6 +648,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_exam_definition(
+    ExamDefinition? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sheet_result(
     SheetResult? self,
     SseSerializer serializer,
@@ -575,6 +713,22 @@ class RustLibWire implements BaseWire {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
         ptr,
       );
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+        ptr,
+      );
 }
 
 @JS('wasm_bindgen')
@@ -590,6 +744,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+    int ptr,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSheetScanner(
     int ptr,
   );
 }

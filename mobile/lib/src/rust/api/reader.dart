@@ -5,11 +5,12 @@
 
 import '../frb_generated.dart';
 import 'camera.dart';
+import 'definition.dart';
 import 'exam.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `remember`, `sheet_result`, `verified`
+// These functions are ignored because they are not marked as `pub`: `build`, `evaluate`, `percent`, `png`, `reason_key`, `region_from`, `remember`, `sheet_result`, `verified`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Precomputed`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `analyze`
 
@@ -30,6 +31,24 @@ abstract class ExamReader implements RustOpaqueInterface {
   /// An Excel workbook for the exam: one row per sheet, the class result per
   /// PÇ and per question, and the exam details.
   Future<Uint8List> exportExcel({required List<ReportSheet> sheets});
+
+  /// Builds a reader for an exam recognised on the sheet itself (or any
+  /// stored definition), with the maximum scores the instructor entered.
+  static Future<ExamReader> fromDefinition({
+    required String templateJson,
+    required List<int> templatePng,
+    required List<int> modelOnnx,
+    required ExamDefinition definition,
+    required List<MaximumScore> maximumScores,
+    required List<RosterStudent> roster,
+  }) => RustLib.instance.api.crateApiReaderExamReaderFromDefinition(
+    templateJson: templateJson,
+    templatePng: templatePng,
+    modelOnnx: modelOnnx,
+    definition: definition,
+    maximumScores: maximumScores,
+    roster: roster,
+  );
 
   /// What was seen in the last photo or camera frame: the picture with the
   /// located page, table and cells drawn on it, and a text report. `None`

@@ -156,7 +156,46 @@ impl ExamReader {
         maximum_scores: Vec<MaximumScore>,
         roster: Vec<RosterStudent>,
     ) -> anyhow::Result<ExamReader> {
-        let mut imported = ImportedExam::from_docx(&exam_docx)?;
+        let imported = ImportedExam::from_docx(&exam_docx)?;
+        Self::build(
+            template_json,
+            template_png,
+            model_onnx,
+            imported,
+            maximum_scores,
+            roster,
+        )
+    }
+
+    /// Builds a reader for an exam recognised on the sheet itself (or any
+    /// stored definition), with the maximum scores the instructor entered.
+    pub fn from_definition(
+        template_json: String,
+        template_png: Vec<u8>,
+        model_onnx: Vec<u8>,
+        definition: crate::api::definition::ExamDefinition,
+        maximum_scores: Vec<MaximumScore>,
+        roster: Vec<RosterStudent>,
+    ) -> anyhow::Result<ExamReader> {
+        let imported = definition.to_imported()?;
+        Self::build(
+            template_json,
+            template_png,
+            model_onnx,
+            imported,
+            maximum_scores,
+            roster,
+        )
+    }
+
+    fn build(
+        template_json: String,
+        template_png: Vec<u8>,
+        model_onnx: Vec<u8>,
+        mut imported: ImportedExam,
+        maximum_scores: Vec<MaximumScore>,
+        roster: Vec<RosterStudent>,
+    ) -> anyhow::Result<ExamReader> {
         for entry in &maximum_scores {
             let id = QuestionId::new(&entry.question).map_err(|e| anyhow!("{e}"))?;
             let value = ScoreValue::from_decimal(&entry.value.replace(',', "."))
