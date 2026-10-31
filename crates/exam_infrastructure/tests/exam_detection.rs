@@ -202,3 +202,66 @@ fn a_reader_built_from_the_detected_exam_reads_like_the_word_one() {
     };
     assert_eq!(texts(&from_sheet), texts(&from_word));
 }
+
+#[test]
+fn exams_with_other_numbers_of_questions_are_recognised() {
+    // The form's table has as many columns as the exam has questions; the
+    // header and the rows stay where they are (tools/synthetic/column_variants.py).
+    let (template, printed) = (template(), printed());
+    let labels = std::fs::read_to_string(
+        root().join("crates/exam_infrastructure/tests/fixtures/detect/columns.jsonl"),
+    )
+    .unwrap();
+    for line in labels.lines() {
+        let label: serde_json::Value = serde_json::from_str(line).unwrap();
+        let name = label["image"].as_str().unwrap();
+        let photo = image::open(
+            root()
+                .join("crates/exam_infrastructure/tests/fixtures/detect")
+                .join(name),
+        )
+        .unwrap()
+        .to_rgb8();
+        let located = template.locate(&photo, None);
+        assert!(located.found(), "{name}: {}", located.registration_score);
+        let detected = detect_exam(&template, &printed, &photo, &located).unwrap();
+        let expected: Vec<(String, Vec<String>)> = label["outcomes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(i, o)| (format!("S{}", i + 1), vec![o.as_str().unwrap().to_owned()]))
+            .collect();
+        let found: Vec<(String, Vec<String>)> = detected
+            .questions
+            .iter()
+            .map(|q| {
+                (
+                    q.printed_id.clone(),
+                    q.outcomes.iter().map(|o| o.as_str().to_owned()).collect(),
+                )
+            })
+            .collect();
+        // Every column, numbered in order. A label the reader misses on one
+        // frame is left empty (the instructor fills it in or the next frame
+        // reads it), never read as another PÇ.
+        let ids = |pairs: &[(String, Vec<String>)]| -> Vec<String> {
+            pairs.iter().map(|(id, _)| id.clone()).collect()
+        };
+        assert_eq!(ids(&found), ids(&expected), "{name}");
+        let missed = found
+            .iter()
+            .zip(&expected)
+            .filter(|((_, got), (_, want))| {
+                assert!(got.is_empty() || got == want, "{name}: {got:?} vs {want:?}");
+                got.is_empty()
+            })
+            .count();
+        assert!(missed <= 1, "{name}: {found:?}");
+        assert_eq!(
+            detected.metadata.course_code.as_deref(),
+            Some("BİLM374"),
+            "{name}"
+        );
+    }
+}

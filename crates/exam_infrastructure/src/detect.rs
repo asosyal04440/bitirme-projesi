@@ -11,7 +11,7 @@
 
 use crate::printed::PrintedTextReader;
 use crate::recognition::RecognitionError;
-use crate::sheet::{Located, SheetTemplate};
+use crate::sheet::{Located, SheetTemplate, TableRows};
 use crate::vision::{warp_quad, Point, Rect};
 use exam_core::domain::{LearningOutcomeId, QuestionId};
 use exam_import::{ColumnSpan, ExamMetadata, ImportWarning, ImportedExam, ImportedQuestion};
@@ -22,6 +22,8 @@ const BAND_SCALE: f64 = 3.0;
 /// A sample is ink when it is this much darker than the paper; printed table
 /// lines in a phone photo are grey rather than black.
 const DARK: f32 = 0.82;
+/// A sample is (faint) ink when it is this much darker than the paper.
+const FAINT: f32 = 0.92;
 /// Share of the two table rows a column must be dark in to be a printed line
 /// (handwritten digits cover far less of it).
 const LINE_COVERAGE: f32 = 0.7;
@@ -34,6 +36,13 @@ const MIN_SUPPORT: f32 = 0.35;
 const TILT: usize = 1;
 /// Narrowest question column, in template pixels (a label is 4-5 characters).
 const MIN_COLUMN: f64 = 20.0;
+/// Template pixels the first column's left line may lie from where the
+/// registration puts it.
+const START_REACH: f64 = 16.0;
+/// Samples a line may lie apart in the table's two rows.
+const ROW_DRIFT: usize = 4;
+/// Template pixels of the table band over which the rows' offset is found.
+const OFFSET_STRETCH: f64 = 24.0;
 /// Units per template pixel in the column spans of the detected exam.
 const UNITS_PER_PIXEL: f64 = 20.0;
 
@@ -273,58 +282,72 @@ pub fn table_lines(
     let rows = template.table_rows();
     let (width, _) = template.size();
     let left = rows.first_column - 12.0;
-    let right = width as f64 * 0.97;
+    // Within the header table above, which the question table never passes.
+    let right = width as f64 * 0.94;
     let to_photo = template.to_photo(located)?;
+    // The table's rows with a row's height of margin above and below, sampled
+    // in one band: the registration may be a few pixels off, more so towards
+    // the right, so the rows are found again from their printed lines.
+    let pad = rows.mapping.1;
+    let (top, bottom) = (rows.mapping.0 - pad, rows.total.0 + rows.total.1 + pad);
+    let band = Rect {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+    };
+    let quad: [Point; 4] = band.corners().map(|p| to_photo.apply(p));
+    let (bw, bh) = (
+        (band.width * BAND_SCALE).round().max(1.0) as usize,
+        (band.height * BAND_SCALE).round().max(4.0) as usize,
+    );
+    let image = warp_quad(photo, &quad, bw as u32, bh as u32);
+    let values: Vec<f32> = image
+        .pixels()
+        .map(|p| f32::from(p[0].max(p[1]).max(p[2])))
+        .collect();
+    // Paper level around each column (shadows fall across the table): the
+    // column's bright end, then the brightest of its neighbours.
+    let column_paper: Vec<f32> = (0..bw)
+        .map(|x| {
+            let mut column: Vec<f32> = (0..bh).map(|y| values[y * bw + x]).collect();
+            column.sort_by(f32::total_cmp);
+            column[(column.len() * 9) / 10]
+        })
+        .collect();
+    let reach = (PAPER_REACH * BAND_SCALE) as usize;
+    let paper: Vec<f32> = (0..bw)
+        .map(|x| {
+            column_paper[x.saturating_sub(reach)..(x + reach + 1).min(bw)]
+                .iter()
+                .copied()
+                .fold(1.0_f32, f32::max)
+        })
+        .collect();
+    let dark = |x: usize, y: usize| values[y * bw + x] < paper[x] * DARK;
+    // Lines blurred thin and grey (a close-up of a small print) are only
+    // slightly darker than the paper.
+    let faint = |x: usize, y: usize| values[y * bw + x] < paper[x] * FAINT;
+    let offsets = row_offsets(&rows, top, pad, bw, bh, &dark);
     // Each row is sampled only in its strips above and below the text (the
     // label is centred, the handwriting mostly too): a printed line crosses
     // them, text does not. A line must show in both rows.
     let strip_coverage = |(y, height): (f64, f64)| -> Vec<f32> {
-        let band = Rect {
-            x: left,
-            y,
-            width: right - left,
-            height,
-        };
-        let quad: [Point; 4] = band.corners().map(|p| to_photo.apply(p));
-        let (bw, bh) = (
-            (band.width * BAND_SCALE).round().max(1.0) as usize,
-            (band.height * BAND_SCALE).round().max(4.0) as usize,
-        );
-        let image = warp_quad(photo, &quad, bw as u32, bh as u32);
-        let values: Vec<f32> = image
-            .pixels()
-            .map(|p| f32::from(p[0].max(p[1]).max(p[2])))
-            .collect();
-        // Paper level around each column (shadows fall across the table):
-        // the column's bright end, then the brightest of its neighbours.
-        let column_paper: Vec<f32> = (0..bw)
-            .map(|x| {
-                let mut column: Vec<f32> = (0..bh).map(|y| values[y * bw + x]).collect();
-                column.sort_by(f32::total_cmp);
-                column[(column.len() * 9) / 10]
-            })
-            .collect();
-        let reach = (PAPER_REACH * BAND_SCALE) as usize;
-        let paper: Vec<f32> = (0..bw)
-            .map(|x| {
-                column_paper[x.saturating_sub(reach)..(x + reach + 1).min(bw)]
-                    .iter()
-                    .copied()
-                    .fold(1.0_f32, f32::max)
-            })
-            .collect();
-        let strip: Vec<usize> = (0..bh)
-            .filter(|&r| {
-                let t = r as f64 / bh as f64;
-                (0.1..0.3).contains(&t) || (0.7..0.9).contains(&t)
-            })
+        let strip: Vec<f64> = (0..20)
+            .map(|k| (f64::from(k) + 0.5) / 20.0)
+            .filter(|t| (0.1..0.3).contains(t) || (0.7..0.9).contains(t))
+            .map(|t| (y - top + t * height) * BAND_SCALE)
             .collect();
         (0..bw)
             .map(|x| {
                 let (from, to) = (x.saturating_sub(TILT), (x + TILT).min(bw - 1));
                 strip
                     .iter()
-                    .filter(|&&r| (from..=to).any(|c| values[r * bw + c] < paper[c] * DARK))
+                    .filter_map(|&r| {
+                        let r = (r + offsets[x]).round();
+                        (r >= 0.0 && (r as usize) < bh).then_some(r as usize)
+                    })
+                    .filter(|&r| (from..=to).any(|c| dark(c, r)))
                     .count() as f32
                     / strip.len().max(1) as f32
             })
@@ -332,7 +355,21 @@ pub fn table_lines(
     };
     let mapping = strip_coverage(rows.mapping);
     let score = strip_coverage(rows.score);
-    let coverage: Vec<f32> = mapping.iter().zip(&score).map(|(a, b)| a.min(*b)).collect();
+    // A line must show in both rows, but a slightly turned photo puts it a
+    // few samples apart in the two.
+    let widest = |row: &[f32], x: usize| {
+        row[x.saturating_sub(ROW_DRIFT)..(x + ROW_DRIFT + 1).min(row.len())]
+            .iter()
+            .copied()
+            .fold(0.0_f32, f32::max)
+    };
+    let coverage: Vec<f32> = (0..mapping.len())
+        .map(|x| {
+            mapping[x]
+                .min(widest(&score, x))
+                .max(score[x].min(widest(&mapping, x)))
+        })
+        .collect();
     let to_template = |sample: usize| left + (sample as f64 + 0.5) / BAND_SCALE;
     let to_sample = |x: f64| ((x - left) * BAND_SCALE).round().max(0.0) as usize;
     // Strongest line within `reach` template pixels of `x`.
@@ -347,16 +384,80 @@ pub fn table_lines(
     };
     // The first column starts where the form's fixed label column ends; the
     // table ends at its rightmost printed line.
-    let start = near(rows.first_column, 6.0).1;
-    let end = peaks(&coverage, LINE_COVERAGE, 4)
+    let strong: Vec<f64> = peaks(&coverage, LINE_COVERAGE, 4)
         .into_iter()
         .map(to_template)
-        .rfind(|&x| x > start + MIN_COLUMN)?;
-    // Question columns are equally wide in the form's table: try every count,
+        .collect();
+    let start = strong
+        .iter()
+        .copied()
+        .filter(|x| (x - rows.first_column).abs() <= START_REACH)
+        .min_by(|a, b| {
+            (a - rows.first_column)
+                .abs()
+                .total_cmp(&(b - rows.first_column).abs())
+        })
+        .unwrap_or_else(|| near(rows.first_column, 6.0).1);
+    // The table ends where its horizontal lines do (the sheet's edge or a
+    // shadow beyond it is a vertical line too, but carries none).
+    let lines_at = |x: usize| {
+        [
+            rows.mapping.0,
+            rows.score.0,
+            rows.total.0,
+            rows.total.0 + rows.total.1,
+        ]
+        .iter()
+        .filter(|&&y| {
+            let r = (y - top) * BAND_SCALE + offsets[x];
+            (r.round() as i64 - 4..=r.round() as i64 + 4)
+                .any(|r| r >= 0 && (r as usize) < bh && faint(x, r as usize))
+        })
+        .count()
+            >= 2
+    };
+    let first = to_sample(start).min(bw - 1);
+    let (mut extent, mut gap) = (first, 0);
+    for x in first..bw {
+        if lines_at(x) {
+            (extent, gap) = (x, 0);
+        } else {
+            gap += 1;
+            if gap as f64 > MIN_COLUMN * BAND_SCALE {
+                break;
+            }
+        }
+    }
+    let extent = to_template(extent);
+    let end = strong
+        .iter()
+        .copied()
+        .rfind(|&x| x > start + MIN_COLUMN && x <= extent + 4.0)
+        .or_else(|| strong.iter().copied().rfind(|&x| x > start + MIN_COLUMN))?;
+    // The printed lines themselves, when they split the table into columns
+    // of about the same width (the form's columns are equally wide; a column
+    // may come out somewhat off where the registration is).
+    let printed: Vec<f64> = strong
+        .iter()
+        .copied()
+        .filter(|&x| x > start + MIN_COLUMN / 2.0 && x < end - MIN_COLUMN / 2.0)
+        .collect();
+    let mut lines = vec![start];
+    lines.extend(printed);
+    lines.push(end);
+    let widths: Vec<f64> = lines.windows(2).map(|w| w[1] - w[0]).collect();
+    let mut sorted = widths.clone();
+    sorted.sort_by(f64::total_cmp);
+    let median = sorted[sorted.len() / 2];
+    if median >= MIN_COLUMN && widths.iter().all(|w| (w / median - 1.0).abs() <= 0.3) {
+        return Some(lines);
+    }
+    // Otherwise (a line too faint, or handwriting across one): question
+    // columns are equally wide in the form's table: try every count,
     // each inner line snapped to the nearest printed line (columns may differ
     // by a few pixels). A table of 4 columns also has the middle line of a
     // 2-column layout, so the most columns that are still well supported win.
-    let layouts: Vec<(f32, Vec<f64>)> = (2..=12_usize)
+    let layouts: Vec<(f32, Vec<f64>)> = (2..=20_usize)
         .map_while(|count| {
             let width = (end - start) / count as f64;
             (width >= MIN_COLUMN).then(|| {
@@ -381,6 +482,82 @@ pub fn table_lines(
         .filter(|(support, _)| *support >= strongest * 0.8)
         .map(|(_, lines)| lines)
         .next_back()
+}
+
+/// For each sample column of the table band, how many samples the table's
+/// rows lie lower than the registration put them: found per stretch of the
+/// band from the horizontal lines between the rows, then smoothed. Where no
+/// lines show (right of the table), the nearest stretch's offset is used.
+fn row_offsets(
+    rows: &TableRows,
+    top: f64,
+    pad: f64,
+    width: usize,
+    height: usize,
+    dark: &impl Fn(usize, usize) -> bool,
+) -> Vec<f64> {
+    let lines: Vec<f64> = [
+        rows.mapping.0,
+        rows.score.0,
+        rows.total.0,
+        rows.total.0 + rows.total.1,
+    ]
+    .iter()
+    .map(|y| (y - top) * BAND_SCALE)
+    .collect();
+    let chunk = (OFFSET_STRETCH * BAND_SCALE) as usize;
+    let range = (pad * 0.8 * BAND_SCALE) as i64;
+    let found: Vec<Option<f64>> = (0..width.div_ceil(chunk))
+        .map(|c| {
+            let columns = c * chunk..((c + 1) * chunk).min(width);
+            let count = columns.len() as f32;
+            let profile: Vec<f32> = (0..height)
+                .map(|y| columns.clone().filter(|&x| dark(x, y)).count() as f32 / count)
+                .collect();
+            let at = |y: i64| {
+                (y - 1..=y + 1)
+                    .filter(|&r| r >= 0 && (r as usize) < height)
+                    .map(|r| profile[r as usize])
+                    .fold(0.0_f32, f32::max)
+            };
+            let (best, shift) = (-range..=range)
+                .map(|dy| {
+                    let support: f32 = lines.iter().map(|&l| at(l.round() as i64 + dy)).sum();
+                    (support, dy)
+                })
+                .fold((0.0_f32, 0), |a, b| if b.0 > a.0 { b } else { a });
+            // Most of the stretch dark on most of the lines.
+            (best >= 0.5 * lines.len() as f32).then_some(shift as f64)
+        })
+        .collect();
+    let known: Vec<(usize, f64)> = found
+        .iter()
+        .enumerate()
+        .filter_map(|(i, f)| f.map(|v| (i, v)))
+        .collect();
+    if known.is_empty() {
+        return vec![0.0; width];
+    }
+    let filled: Vec<f64> = (0..found.len())
+        .map(|i| {
+            known
+                .iter()
+                .min_by_key(|(k, _)| k.abs_diff(i))
+                .map(|&(_, v)| v)
+                .unwrap_or(0.0)
+        })
+        .collect();
+    // Median of each stretch and its neighbours: one stretch misled by
+    // handwriting or a crossed-out line does not count.
+    let smoothed: Vec<f64> = (0..filled.len())
+        .map(|i| {
+            let mut near: Vec<f64> =
+                filled[i.saturating_sub(2)..(i + 3).min(filled.len())].to_vec();
+            near.sort_by(f64::total_cmp);
+            near[near.len() / 2]
+        })
+        .collect();
+    (0..width).map(|x| smoothed[x / chunk]).collect()
 }
 
 /// Centres of the runs where `values` reaches `threshold`; runs closer than

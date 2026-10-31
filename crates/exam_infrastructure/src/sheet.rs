@@ -26,7 +26,7 @@ use std::path::Path;
 const CROP_HEIGHT: u32 = 64;
 /// Below this template correlation the sheet location is doubtful and the
 /// page goes to review.
-pub const MIN_REGISTRATION_SCORE: f64 = 0.35;
+pub const MIN_REGISTRATION_SCORE: f64 = 0.5;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 struct NormalizedBox {
@@ -194,6 +194,16 @@ impl SheetTemplate {
             course: rect(&h.course),
             group: h.group.as_ref().map(rect),
         });
+        // The question columns of the table differ between exams (how many
+        // questions, which PÇ); only the label column before them is fixed.
+        let first = &questions[0];
+        let table_bottom = field("declared_total")?.y + field("declared_total")?.height;
+        let columns = Rect {
+            x: first.mapping_cell.x + 3.0,
+            y: first.mapping_cell.y - 3.0,
+            width: w - first.mapping_cell.x - 3.0,
+            height: table_bottom - first.mapping_cell.y + 6.0,
+        };
         let mut template = Self {
             template_id: file.template_id,
             header,
@@ -203,7 +213,7 @@ impl SheetTemplate {
             questions,
             size: (blank.width() as usize, blank.height() as usize),
             aligner: Aligner::from_cells(1, 1, &[]),
-            registrar: Registrar::new(blank),
+            registrar: Registrar::new(blank, &[columns]),
         };
         template.rebuild_aligner();
         Ok(template)

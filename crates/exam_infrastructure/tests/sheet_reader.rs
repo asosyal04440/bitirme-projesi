@@ -287,15 +287,6 @@ fn shifted(photo: &image::RgbImage, dx: i64, dy: i64) -> image::RgbImage {
     frame
 }
 
-fn score_texts(sheet: &exam_infrastructure::sheet::SheetReading) -> Vec<String> {
-    sheet
-        .fields
-        .iter()
-        .filter(|f| f.field_key.starts_with("question:") || f.field_key == "declared_total")
-        .map(|f| f.reading.as_ref().unwrap().text.clone())
-        .collect()
-}
-
 #[test]
 fn a_moving_sheet_is_tracked_between_camera_frames() {
     let analyzer = analyzer();
@@ -314,7 +305,6 @@ fn a_moving_sheet_is_tracked_between_camera_frames() {
             label["sample_id"],
             tracked.registration_score
         );
-        let before = analyzer.read_at(&photo, &first).unwrap();
         let after = analyzer.read_at(&next, &tracked).unwrap();
         // Every cell is still found where it now is (only the matched top of
         // the page is constrained, so the page corners themselves may drift).
@@ -335,7 +325,19 @@ fn a_moving_sheet_is_tracked_between_camera_frames() {
                 label["sample_id"]
             );
         }
-        assert_eq!(score_texts(&after), score_texts(&before));
+        // Where a full search on the same frame puts the matched top of the
+        // page. (Not the readings: a few pixels' shift can flip a borderline
+        // handwritten digit either way.)
+        let searched = analyzer.locate(&next, None);
+        for corner in 0..2 {
+            let (a, b) = (tracked.page_quad[corner], searched.page_quad[corner]);
+            let apart = (a.x - b.x).hypot(a.y - b.y);
+            assert!(
+                apart < 6.0,
+                "{} corner {corner}: {apart:.1} px",
+                label["sample_id"]
+            );
+        }
     }
 }
 
@@ -398,6 +400,43 @@ fn a_close_up_of_the_top_of_the_sheet_is_read() {
             let overlap = iou(bounds(field.quad.iter().map(|p| (p.x, p.y))), expected);
             assert!(
                 overlap > 0.55,
+                "{} {key}: IoU {overlap:.2}",
+                label["sample_id"]
+            );
+        }
+    }
+}
+
+#[test]
+fn a_sheet_lying_sideways_is_found() {
+    // The phone held across the sheet: the frame shows it turned a quarter.
+    let analyzer = analyzer();
+    for label in labels() {
+        let photo = image::load_from_memory(&photo_bytes(&label))
+            .unwrap()
+            .to_rgb8();
+        let height = f64::from(photo.height());
+        let turned = image::imageops::rotate90(&photo);
+        let sheet = analyzer.read_sheet(&turned).unwrap();
+        assert!(
+            sheet.page_found,
+            "{}: {}",
+            label["sample_id"], sheet.registration_score
+        );
+        for cell in label["cells"].as_array().unwrap() {
+            let key = cell["field_key"].as_str().unwrap();
+            let field = sheet.fields.iter().find(|f| f.field_key == key).unwrap();
+            // A quarter turn clockwise moves (x, y) to (height - y, x).
+            let expected = bounds(
+                cell["quad"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|p| (height - p[1].as_f64().unwrap(), p[0].as_f64().unwrap())),
+            );
+            let overlap = iou(bounds(field.quad.iter().map(|p| (p.x, p.y))), expected);
+            assert!(
+                overlap > 0.6,
                 "{} {key}: IoU {overlap:.2}",
                 label["sample_id"]
             );

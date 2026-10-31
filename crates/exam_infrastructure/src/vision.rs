@@ -46,6 +46,11 @@ impl Rect {
         ]
     }
 
+    pub fn contains(&self, p: Point) -> bool {
+        (self.x..self.x + self.width).contains(&p.x)
+            && (self.y..self.y + self.height).contains(&p.y)
+    }
+
     pub fn union(&self, other: &Rect) -> Rect {
         let x = self.x.min(other.x);
         let y = self.y.min(other.y);
@@ -469,18 +474,23 @@ pub fn detect_page(photo: &RgbImage) -> Option<[Point; 4]> {
 /// (a sliding maximum), so shadows do not read as print.
 struct DarknessMap {
     plane: Plane,
+    /// Summed-area table of `plane`, with a zero row and column in front.
+    sums: Vec<f64>,
     scale: f64,
 }
 
 impl DarknessMap {
     fn new(photo: &RgbImage, long_side: usize) -> Self {
         let (width, height) = (photo.width() as usize, photo.height() as usize);
-        let factor = (width.max(height) as f64 / long_side as f64).max(1.0);
+        // Sized by the short side as for a 4:3 photo, so that a portrait
+        // camera frame (16:9) is not sampled more coarsely across the page.
+        let factor = (width.min(height) as f64 * 4.0 / 3.0 / long_side as f64).max(1.0);
         let (w, h) = (
-            (width as f64 / factor).round() as usize,
-            (height as f64 / factor).round() as usize,
+            ((width as f64 / factor).round() as usize).max(1),
+            ((height as f64 / factor).round() as usize).max(1),
         );
         let mut value = Plane::new(w, h);
+        let mut whiteness = Plane::new(w, h);
         for y in 0..h {
             for x in 0..w {
                 let [r, g, b] = sample_rgb(
@@ -489,17 +499,71 @@ impl DarknessMap {
                     (y as f64 + 0.5) * factor - 0.5,
                 );
                 value.data[y * w + x] = r.max(g).max(b);
+                whiteness.data[y * w + x] = r.min(g).min(b);
             }
         }
         let paper = sliding_max(&value, (w.max(h) / 40).max(3));
+        // Wide areas that are dark or coloured are the desk or whatever lies
+        // around the sheet, not ink: their texture (wood grain, marble veins,
+        // a bag) would otherwise pass for print. The sheet is white: its
+        // weakest colour channel is still bright. Closing that removes thin
+        // print (lines, letters, blue handwriting) and keeps those areas, with
+        // a sharp edge at the sheet's.
+        let reach = (w.min(h) / 50).max(2);
+        let closed = sliding_min(&sliding_max(&whiteness, reach), reach);
+        let mut levels = closed.data.clone();
+        levels.sort_by(f32::total_cmp);
+        let sheet = levels[levels.len() * 9 / 10].max(1.0);
         let mut plane = Plane::new(w, h);
         for i in 0..value.data.len() {
-            plane.data[i] = (1.0 - value.data[i] / paper.data[i].max(1.0)).clamp(0.0, 1.0);
+            let on_paper = ((closed.data[i] / sheet - 0.65) / 0.15).clamp(0.0, 1.0);
+            plane.data[i] =
+                on_paper * (1.0 - value.data[i] / paper.data[i].max(1.0)).clamp(0.0, 1.0);
+        }
+        let mut sums = vec![0.0_f64; (w + 1) * (h + 1)];
+        for y in 0..h {
+            for x in 0..w {
+                sums[(y + 1) * (w + 1) + x + 1] = f64::from(plane.at(x, y))
+                    + sums[y * (w + 1) + x + 1]
+                    + sums[(y + 1) * (w + 1) + x]
+                    - sums[y * (w + 1) + x];
+            }
         }
         Self {
             plane,
+            sums,
             scale: 1.0 / factor,
         }
+    }
+
+    /// Mean darkness of the square of side `size` (photo pixels) around `p`;
+    /// outside the photo counts as blank. Sampling a template level coarser
+    /// than this map at single points would miss thin lines between them.
+    fn area(&self, p: Point, size: f64) -> f32 {
+        let half = 0.5 * size * self.scale;
+        if half < 0.75 {
+            return self.sample(p);
+        }
+        let (cx, cy) = (p.x * self.scale, p.y * self.scale);
+        let total = self.summed(cx + half, cy + half)
+            - self.summed(cx - half, cy + half)
+            - self.summed(cx + half, cy - half)
+            + self.summed(cx - half, cy - half);
+        (total / (4.0 * half * half)) as f32
+    }
+
+    /// Sum of the map over `[0, x) x [0, y)` (map pixels, fractional edges).
+    fn summed(&self, x: f64, y: f64) -> f64 {
+        let (w, h) = (self.plane.width, self.plane.height);
+        let x = x.clamp(0.0, w as f64);
+        let y = y.clamp(0.0, h as f64);
+        let (x0, y0) = ((x as usize).min(w - 1), (y as usize).min(h - 1));
+        let (fx, fy) = (x - x0 as f64, y - y0 as f64);
+        let stride = w + 1;
+        let at = |i: usize, j: usize| self.sums[j * stride + i];
+        let top = at(x0, y0) * (1.0 - fx) + at(x0 + 1, y0) * fx;
+        let bottom = at(x0, y0 + 1) * (1.0 - fx) + at(x0 + 1, y0 + 1) * fx;
+        top * (1.0 - fy) + bottom * fy
     }
 
     fn sample(&self, p: Point) -> f32 {
@@ -519,38 +583,96 @@ impl DarknessMap {
     }
 }
 
+/// Mean over a (2 `radius` + 1)² window, clipped at the borders.
+fn blur(plane: &Plane, radius: usize) -> Plane {
+    if radius == 0 {
+        return Plane {
+            width: plane.width,
+            height: plane.height,
+            data: plane.data.clone(),
+        };
+    }
+    let (w, h) = (plane.width, plane.height);
+    let mut out = Plane::new(w, h);
+    for y in 0..h {
+        let (y0, y1) = (y.saturating_sub(radius), (y + radius + 1).min(h));
+        for x in 0..w {
+            let (x0, x1) = (x.saturating_sub(radius), (x + radius + 1).min(w));
+            let sum: f32 = (y0..y1)
+                .flat_map(|j| (x0..x1).map(move |i| (i, j)))
+                .map(|(i, j)| plane.at(i, j))
+                .sum();
+            out.data[y * w + x] = sum / ((x1 - x0) * (y1 - y0)) as f32;
+        }
+    }
+    out
+}
+
 fn sliding_max(plane: &Plane, radius: usize) -> Plane {
+    sliding(plane, radius, 0.0, f32::max)
+}
+
+fn sliding_min(plane: &Plane, radius: usize) -> Plane {
+    sliding(plane, radius, f32::MAX, f32::min)
+}
+
+/// `pick` over a (2 `radius` + 1)² window, clipped at the borders.
+fn sliding(plane: &Plane, radius: usize, start: f32, pick: fn(f32, f32) -> f32) -> Plane {
     let (w, h) = (plane.width, plane.height);
     let mut rows = Plane::new(w, h);
     for y in 0..h {
         for x in 0..w {
             let (x0, x1) = (x.saturating_sub(radius), (x + radius + 1).min(w));
-            rows.data[y * w + x] = (x0..x1).map(|i| plane.at(i, y)).fold(0.0, f32::max);
+            rows.data[y * w + x] = (x0..x1).map(|i| plane.at(i, y)).fold(start, pick);
         }
     }
     let mut out = Plane::new(w, h);
     for y in 0..h {
         let (y0, y1) = (y.saturating_sub(radius), (y + radius + 1).min(h));
         for x in 0..w {
-            out.data[y * w + x] = (y0..y1).map(|j| rows.at(x, j)).fold(0.0, f32::max);
+            out.data[y * w + x] = (y0..y1).map(|j| rows.at(x, j)).fold(start, pick);
         }
     }
     out
 }
+
+/// Correlation given up per unit of [`Registrar::distortion`].
+const SHAPE_WEIGHT: f64 = 0.1;
+
+/// Upright outlines of each orientation and size kept from the tiny level.
+const SHORTLIST: usize = 16;
+/// Of those, how many are also tried tilted.
+const TILTED: usize = 6;
+
+/// Contrast of a photo region, relative to the template's, below which it is
+/// too faint to be the printed sheet.
+const FAINT: f64 = 0.3;
 
 /// Mean-centred template darkness at one coarse size.
 struct TemplateLevel {
     /// Only the rows used for matching (the top of the page).
     plane: Plane,
     norm: f64,
+    /// Whether each level pixel takes part in matching.
+    kept: Vec<bool>,
     /// Template pixels per level pixel.
     step: f64,
+    /// Level pixels each sample averages over (both on the template and the
+    /// photo): more than one widens the score's peak, so that a coarse grid
+    /// of starts does not step over it.
+    spread: usize,
     /// Full template height in template pixels.
     page_height: f64,
 }
 
 impl TemplateLevel {
-    fn new(template_gray: &image::GrayImage, width: usize, matched_fraction: f64) -> Self {
+    fn new(
+        template_gray: &image::GrayImage,
+        width: usize,
+        matched_fraction: f64,
+        spread: usize,
+        ignored: &[Rect],
+    ) -> Self {
         let (tw, th) = (template_gray.width() as f64, template_gray.height() as f64);
         let step = tw / width as f64;
         let height = ((th * matched_fraction) / step).round() as usize;
@@ -570,9 +692,27 @@ impl TemplateLevel {
                 plane.data[y * width + x] = sum / ((x1 - x0) * (y1 - y0)) as f32;
             }
         }
-        let mean = plane.data.iter().sum::<f32>() / plane.data.len() as f32;
-        for v in &mut plane.data {
-            *v -= mean;
+        let mut plane = blur(&plane, spread / 2);
+        let kept: Vec<bool> = (0..plane.data.len())
+            .map(|i| {
+                let centre = Point::new(
+                    ((i % width) as f64 + 0.5) * step,
+                    ((i / width) as f64 + 0.5) * step,
+                );
+                !ignored.iter().any(|r| r.contains(centre))
+            })
+            .collect();
+        let count = kept.iter().filter(|&&k| k).count().max(1);
+        let mean = plane
+            .data
+            .iter()
+            .zip(&kept)
+            .filter(|(_, &k)| k)
+            .map(|(v, _)| v)
+            .sum::<f32>()
+            / count as f32;
+        for (v, &k) in plane.data.iter_mut().zip(&kept) {
+            *v = if k { *v - mean } else { 0.0 };
         }
         let norm = plane
             .data
@@ -583,7 +723,9 @@ impl TemplateLevel {
         Self {
             plane,
             norm,
+            kept,
             step,
+            spread,
             page_height: th,
         }
     }
@@ -602,19 +744,27 @@ impl TemplateLevel {
             return -1.0;
         };
         let (w, h) = (self.plane.width, self.plane.height);
+        // Photo pixels one level pixel spans.
+        let size =
+            (quad[1].x - quad[0].x).hypot(quad[1].y - quad[0].y) / w as f64 * self.spread as f64;
         let mut samples = Vec::with_capacity(w * h);
+        let mut templates = Vec::with_capacity(w * h);
         for y in 0..h {
             for x in 0..w {
+                if !self.kept[y * w + x] {
+                    continue;
+                }
                 let p = map.apply(Point::new(
                     (x as f64 + 0.5) * self.step,
                     (y as f64 + 0.5) * self.step,
                 ));
-                samples.push(darkness.sample(p));
+                samples.push(darkness.area(p, size));
+                templates.push(self.plane.data[y * w + x]);
             }
         }
-        let mean = samples.iter().sum::<f32>() / samples.len() as f32;
+        let mean = samples.iter().sum::<f32>() / samples.len().max(1) as f32;
         let (mut dot, mut norm) = (0.0_f64, 0.0_f64);
-        for (t, s) in self.plane.data.iter().zip(&samples) {
+        for (t, s) in templates.iter().zip(&samples) {
             let centred = f64::from(s - mean);
             dot += f64::from(*t) * centred;
             norm += centred * centred;
@@ -622,7 +772,11 @@ impl TemplateLevel {
         if norm <= 0.0 {
             return -1.0;
         }
-        dot / (self.norm * norm.sqrt())
+        // Normalised cross-correlation, except that a faint pattern (a desk's
+        // grain or stripes, shading) is not scaled up to the strength of
+        // print: below a fraction of the template's contrast it counts as
+        // that fraction.
+        dot / (self.norm * norm.sqrt().max(FAINT * self.norm))
     }
 }
 
@@ -639,16 +793,27 @@ pub struct Registrar {
 }
 
 impl Registrar {
-    /// Only the top of the sheet is matched: the institutional header, rules
-    /// and `Soru-PÇ` table are the same on every exam, while the question
-    /// texts below differ from exam to exam.
-    pub const MATCHED_FRACTION: f64 = 0.32;
+    /// Only the top of the sheet is matched: the institutional header, rules,
+    /// `Soru-PÇ` table and the `SINAV SORULARI -- GRUP` line are laid out the
+    /// same on every exam, while the question texts below differ.
+    pub const MATCHED_FRACTION: f64 = 0.35;
 
-    pub fn new(template_gray: &image::GrayImage) -> Self {
+    /// `ignored` (template pixels) is left out of matching: parts of the top
+    /// that change between exams, i.e. the question columns of the table.
+    pub fn new(template_gray: &image::GrayImage, ignored: &[Rect]) -> Self {
+        let level = |width, spread| {
+            TemplateLevel::new(
+                template_gray,
+                width,
+                Self::MATCHED_FRACTION,
+                spread,
+                ignored,
+            )
+        };
         Self {
-            tiny: TemplateLevel::new(template_gray, 40, Self::MATCHED_FRACTION),
-            coarse: TemplateLevel::new(template_gray, 80, Self::MATCHED_FRACTION),
-            fine: TemplateLevel::new(template_gray, 160, Self::MATCHED_FRACTION),
+            tiny: level(40, 2),
+            coarse: level(80, 1),
+            fine: level(160, 1),
             aspect: f64::from(template_gray.width()) / f64::from(template_gray.height()),
         }
     }
@@ -660,8 +825,26 @@ impl Registrar {
     pub fn track(&self, photo: &RgbImage, previous: &[Point; 4]) -> ([Point; 4], f64) {
         let coarse_map = DarknessMap::new(photo, 240);
         let fine_map = DarknessMap::new(photo, 480);
-        let start = Self::refine(&self.coarse, &coarse_map, *previous, &[4.0, 2.0, 1.0]).0;
-        Self::refine(&self.fine, &fine_map, start, &[2.0, 1.0, 0.5])
+        // Between frames the sheet mostly moves: find the shift first, so
+        // that corner-by-corner refinement does not bend the outline instead.
+        let pixel = 1.0 / coarse_map.scale;
+        let shifts: Vec<[Point; 4]> = (-6..=6)
+            .flat_map(|i| (-6..=6).map(move |j| (i, j)))
+            .map(|(i, j)| {
+                let (dx, dy) = (f64::from(i) * 2.0 * pixel, f64::from(j) * 2.0 * pixel);
+                previous.map(|p| Point::new(p.x + dx, p.y + dy))
+            })
+            .collect();
+        let shifted = shifts
+            .into_iter()
+            .map(|quad| (self.coarse.score(&coarse_map, &quad), quad))
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .expect("at least one shift")
+            .1;
+        let start = self
+            .refine(&self.coarse, &coarse_map, shifted, &[2.0, 1.0])
+            .0;
+        self.refine(&self.fine, &fine_map, start, &[2.0, 1.0, 0.5, 0.25])
     }
 
     /// Best page outline (photo pixels) and its correlation in [-1, 1].
@@ -671,103 +854,153 @@ impl Registrar {
         let coarse_map = DarknessMap::new(photo, 240);
         let fine_map = DarknessMap::new(photo, 480);
 
-        // A page roughly filling the frame, upright within about 10 degrees.
-        let mut scored: Vec<(f64, [Point; 4])> = candidates
-            .iter()
-            .map(|quad| (self.tiny.score(&tiny_map, quad), *quad))
+        // Upright pages first, in any of the four orientations (the sheet may
+        // lie sideways in the frame). Fills above 1 are close-ups of the top
+        // of the sheet (the matched part), e.g. the phone held over the
+        // header and the Soru-PÇ table; the rest of the page then lies
+        // outside the frame, on any side. The best few of every orientation
+        // and size are also tried tilted by up to about 10 degrees (a tilt
+        // lowers the upright score most at large sizes, so one best list over
+        // all sizes would miss those).
+        let sizes: Vec<(u32, f64)> = (0..4)
+            // 10% apart, from a page well inside the frame to a close-up.
+            .flat_map(|turn| (0..17).map(move |k| (turn, 0.62 * 1.1_f64.powi(k))))
             .collect();
-        // Fills above 1 are close-ups of the top of the sheet (the matched
-        // part), e.g. the phone held sideways over the header and the Soru-PÇ
-        // table; the rest of the page then lies outside the frame.
-        for fill in [
-            0.62, 0.68, 0.74, 0.8, 0.86, 0.92, 0.98, 1.1, 1.25, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4,
-        ] {
-            let page_h = fill * height.min(width / self.aspect);
-            let page_w = page_h * self.aspect;
-            let base_y = if fill > 1.0 {
-                page_h / 2.0
+        let searched = parallel_map(&sizes, |&(turn, fill)| {
+            let (fw, fh) = if turn % 2 == 1 {
+                (height, width)
             } else {
-                height / 2.0
+                (width, height)
             };
-            for degrees in [-9.0_f64, -6.0, -3.0, 0.0, 3.0, 6.0, 9.0] {
-                let (sin, cos) = degrees.to_radians().sin_cos();
+            let page_h = fill * fh.min(fw / self.aspect);
+            let page_w = page_h * self.aspect;
+            // The matched top of the page must be in view.
+            let band = Self::MATCHED_FRACTION * page_h;
+            let (top_min, top_max) = (-0.08 * fh, (fh - band).max(-0.08 * fh));
+            let rows = ((top_max - top_min) / (0.04 * fh)).ceil().max(1.0) as i32;
+            let mut found: Vec<(f64, [Point; 4])> = Vec::new();
+            for j in 0..=rows {
+                let top = top_min + (top_max - top_min) * f64::from(j) / f64::from(rows);
                 for i in -4..=4 {
-                    for j in -4..=4 {
-                        let center = Point::new(
-                            width / 2.0 + f64::from(i) * 0.04 * width,
-                            base_y + f64::from(j) * 0.04 * height,
-                        );
-                        let quad = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)].map(
-                            |(u, v): (f64, f64)| {
-                                let (x, y) = (u * page_w, v * page_h);
-                                Point::new(
-                                    center.x + x * cos - y * sin,
-                                    center.y + x * sin + y * cos,
-                                )
-                            },
-                        );
-                        scored.push((self.tiny.score(&tiny_map, &quad), quad));
-                    }
+                    let center =
+                        Point::new(fw / 2.0 + f64::from(i) * 0.04 * fw, top + page_h / 2.0);
+                    let quad = page_quad(center, page_w, page_h, 0.0)
+                        .map(|p| turn_back(p, turn, width, height));
+                    found.push((self.tiny.score(&tiny_map, &quad), quad));
                 }
             }
-        }
+            found.sort_by(|a, b| b.0.total_cmp(&a.0));
+            found.truncate(SHORTLIST);
+            for (score, quad) in &mut found {
+                *score = self.coarse.score(&coarse_map, quad);
+            }
+            found.sort_by(|a, b| b.0.total_cmp(&a.0));
+            let tilted: Vec<(f64, [Point; 4])> = found
+                .iter()
+                .take(TILTED)
+                .flat_map(|(_, quad)| {
+                    [-9.0_f64, -6.0, -3.0, 3.0, 6.0, 9.0].map(|degrees| rotate_quad(quad, degrees))
+                })
+                .map(|quad| (self.coarse.score(&coarse_map, &quad), quad))
+                .collect();
+            found.extend(tilted);
+            found
+        });
+        let mut scored: Vec<(f64, [Point; 4])> = searched.into_iter().flatten().collect();
         scored.sort_by(|a, b| b.0.total_cmp(&a.0));
 
-        // Refine the best distinct starts on the coarse, then the fine level.
-        let mut starts: Vec<[Point; 4]> = Vec::new();
-        for (_, quad) in &scored {
-            let distinct = starts.iter().all(|s| {
-                s.iter()
-                    .zip(quad)
-                    .map(|(a, b)| (a.x - b.x).hypot(a.y - b.y))
-                    .fold(0.0, f64::max)
-                    > 0.05 * height
-            });
-            if distinct {
-                starts.push(*quad);
-            }
-            if starts.len() == 6 {
-                break;
-            }
-        }
-        let mut refined: Vec<([Point; 4], f64)> = starts
-            .into_iter()
-            .map(|start| Self::refine(&self.coarse, &coarse_map, start, &[8.0, 4.0, 2.0, 1.0]))
-            .collect();
-        refined.sort_by(|a, b| b.1.total_cmp(&a.1));
-        refined
-            .into_iter()
-            .take(3)
-            .map(|(start, _)| Self::refine(&self.fine, &fine_map, start, &[2.0, 1.0, 0.5]))
-            .max_by(|a, b| a.1.total_cmp(&b.1))
-            .expect("at least one start")
+        let starts = distinct(
+            candidates
+                .iter()
+                .copied()
+                .chain(scored.into_iter().map(|(_, quad)| quad)),
+            0.05 * height,
+            candidates.len() + 12,
+        );
+        let fitness = |found: &([Point; 4], f64)| found.1 - self.distortion(&found.0);
+        let mut refined = parallel_map(&starts, |&start| {
+            self.refine(&self.coarse, &coarse_map, start, &[8.0, 4.0, 2.0, 1.0])
+        });
+        refined.sort_by(|a, b| fitness(b).total_cmp(&fitness(a)));
+        refined.truncate(3);
+        parallel_map(&refined, |&(start, _)| {
+            self.refine(&self.fine, &fine_map, start, &[2.0, 1.0, 0.5, 0.25])
+        })
+        .into_iter()
+        .max_by(|a, b| fitness(a).total_cmp(&fitness(b)))
+        .expect("at least one start")
     }
 
+    /// How far `quad` is from the shape of a flat sheet seen from a phone:
+    /// sides in the template's proportion to the top edge, a bottom edge as
+    /// long as the top. Only the top of the sheet is matched, so without this
+    /// the bottom corners may drift (bending the table's columns) at no cost.
+    fn distortion(&self, quad: &[Point; 4]) -> f64 {
+        let length = |a: Point, b: Point| (a.x - b.x).hypot(a.y - b.y);
+        let top = length(quad[0], quad[1]).max(1.0);
+        let off = |ratio: f64| (ratio - 1.0).abs();
+        SHAPE_WEIGHT
+            * (off(length(quad[0], quad[3]) * self.aspect / top)
+                + off(length(quad[1], quad[2]) * self.aspect / top)
+                + off(length(quad[3], quad[2]) / top))
+    }
+
+    /// Corner-by-corner hill climbing from `start`; returns the outline and
+    /// its correlation.
     fn refine(
+        &self,
         level: &TemplateLevel,
         darkness: &DarknessMap,
         start: [Point; 4],
         steps: &[f64],
     ) -> ([Point; 4], f64) {
-        let (mut best, mut best_score) = (start, level.score(darkness, &start));
+        let fitness = |quad: &[Point; 4]| level.score(darkness, quad) - self.distortion(quad);
+        let (mut best, mut best_score) = (start, fitness(&start));
         let pixel = 1.0 / darkness.scale;
         for &step in steps {
             let delta = step * pixel;
             let moves = [(delta, 0.0), (-delta, 0.0), (0.0, delta), (0.0, -delta)];
             for _ in 0..4 {
                 let mut improved = false;
-                for (dx, dy) in moves {
-                    let shifted = best.map(|p| Point::new(p.x + dx, p.y + dy));
-                    let score = level.score(darkness, &shifted);
+                // The whole outline: shifted, scaled or turned around its
+                // centre (by about `delta` at its corners), which single
+                // corner moves can only do through worse outlines.
+                let size = (best[0].x - best[2].x)
+                    .hypot(best[0].y - best[2].y)
+                    .max(1.0);
+                let (cx, cy) = (
+                    best.iter().map(|p| p.x).sum::<f64>() / 4.0,
+                    best.iter().map(|p| p.y).sum::<f64>() / 4.0,
+                );
+                let around = |scale: f64, angle: f64| {
+                    let (sin, cos) = angle.sin_cos();
+                    best.map(|p| {
+                        let (x, y) = ((p.x - cx) * scale, (p.y - cy) * scale);
+                        Point::new(cx + x * cos - y * sin, cy + x * sin + y * cos)
+                    })
+                };
+                let turn = 2.0 * delta / size;
+                let whole = moves
+                    .iter()
+                    .map(|&(dx, dy)| best.map(|p| Point::new(p.x + dx, p.y + dy)))
+                    .chain([
+                        around(1.0 + turn, 0.0),
+                        around(1.0 - turn, 0.0),
+                        around(1.0, turn),
+                        around(1.0, -turn),
+                    ])
+                    .collect::<Vec<_>>();
+                for candidate in whole {
+                    let score = fitness(&candidate);
                     if score > best_score {
-                        (best, best_score, improved) = (shifted, score, true);
+                        (best, best_score, improved) = (candidate, score, true);
                     }
                 }
                 for corner in 0..4 {
                     for (dx, dy) in moves {
                         let mut moved = best;
                         moved[corner] = Point::new(moved[corner].x + dx, moved[corner].y + dy);
-                        let score = level.score(darkness, &moved);
+                        let score = fitness(&moved);
                         if score > best_score {
                             (best, best_score, improved) = (moved, score, true);
                         }
@@ -778,7 +1011,85 @@ impl Registrar {
                 }
             }
         }
-        (best, best_score)
+        let _ = best_score;
+        (best, level.score(darkness, &best))
+    }
+}
+
+/// Up to `count` of `quads`, in order, skipping any whose corners all lie
+/// within `apart` pixels of one already taken.
+fn distinct(
+    quads: impl IntoIterator<Item = [Point; 4]>,
+    apart: f64,
+    count: usize,
+) -> Vec<[Point; 4]> {
+    let mut taken: Vec<[Point; 4]> = Vec::new();
+    for quad in quads {
+        if taken.len() == count {
+            break;
+        }
+        let far = taken.iter().all(|t| {
+            t.iter()
+                .zip(&quad)
+                .map(|(a, b)| (a.x - b.x).hypot(a.y - b.y))
+                .fold(0.0, f64::max)
+                > apart
+        });
+        if far {
+            taken.push(quad);
+        }
+    }
+    taken
+}
+
+/// `f` over `items`, spread over the CPU's cores, results in order.
+fn parallel_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
+    let threads = std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .clamp(1, items.len().max(1));
+    let chunk = items.len().div_ceil(threads).max(1);
+    let f = &f;
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = items
+            .chunks(chunk)
+            .map(|part| scope.spawn(move || part.iter().map(f).collect::<Vec<R>>()))
+            .collect();
+        handles
+            .into_iter()
+            .flat_map(|h| h.join().expect("registration thread"))
+            .collect()
+    })
+}
+
+/// Corners (top-left, top-right, bottom-right, bottom-left) of a `width` x
+/// `height` page centred on `center` and turned `degrees` clockwise.
+fn page_quad(center: Point, width: f64, height: f64, degrees: f64) -> [Point; 4] {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)].map(|(u, v): (f64, f64)| {
+        let (x, y) = (u * width, v * height);
+        Point::new(center.x + x * cos - y * sin, center.y + x * sin + y * cos)
+    })
+}
+
+/// `quad` turned `degrees` clockwise around its centre.
+fn rotate_quad(quad: &[Point; 4], degrees: f64) -> [Point; 4] {
+    let cx = quad.iter().map(|p| p.x).sum::<f64>() / 4.0;
+    let cy = quad.iter().map(|p| p.y).sum::<f64>() / 4.0;
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    quad.map(|p| {
+        let (x, y) = (p.x - cx, p.y - cy);
+        Point::new(cx + x * cos - y * sin, cy + x * sin + y * cos)
+    })
+}
+
+/// A point of the frame turned `turn` quarter turns counter-clockwise (where
+/// the sheet looks upright) back into the `width` x `height` frame itself.
+fn turn_back(p: Point, turn: u32, width: f64, height: f64) -> Point {
+    match turn % 4 {
+        0 => p,
+        1 => Point::new(width - p.y, p.x),
+        2 => Point::new(width - p.x, height - p.y),
+        _ => Point::new(p.y, height - p.x),
     }
 }
 

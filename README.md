@@ -32,9 +32,12 @@ Supporting tools (Python):
 
 1. The exam structure (questions, their PÇ, maximum scores, score-cell columns) is imported from the
    exam's Word file; the rest of the header layout is the same on every sheet of the form.
-2. The photo is registered against the form's header (correlation of the printed structure, robust
-   to shadows and pale desks; the question texts below differ per exam and are not used), then each
-   cell edge snaps to its printed line.
+2. The photo is registered against the top of the form (correlation of the printed structure: the
+   header, the rules and the Soru-PÇ table's label column; the question columns and question texts
+   differ per exam and are not used), then each cell edge snaps to its printed line. The search covers
+   the sheet in any of four orientations, partly outside the frame (a close-up of the table) and on
+   dark, coloured or textured desks (wide areas that are not white paper are ignored); it runs on all
+   CPU cores, about 0.2 s per camera frame on a laptop, and a moving sheet is then tracked.
 3. Score cells, the `Not:` total and the student number are read by the 2.5 MB recognizer; names are
    never read — the student number is matched against the course roster.
 4. The application validates everything (score ≤ maximum, total = sum of scores, single-PÇ weight
@@ -47,8 +50,8 @@ test, ready-made models do much worse: PaddleOCR's mobile recogniser 39.1%, Micr
 (handwritten) 1.0%. See `tools/recognizer/README.md`.
 
 End-to-end on 200 synthetic photos with the reader built from the Word file (MNIST digits from
-writers never used in training, roster of 193): scores 88.0% exact, student identity 84.8%, 95.9% of
-the fields that need review are flagged, cell location IoU 0.91, about 0.4 s per sheet on a laptop
+writers never used in training, roster of 193): scores 90.5% exact, student identity 85.8%, 99.0% of
+the fields that need review are flagged, cell location IoU 0.92, about 0.3 s per sheet on a laptop
 CPU. Matching the whole page instead of the header scores 94.5% here, but only because synthetic
 sheets reuse the template's question text; that would not carry over to other exams. These are
 synthetic-data results, not an accuracy claim for real sheets.
@@ -79,9 +82,11 @@ app can be shown without paper.
 **No set-up: the exam is recognised from the sheet.** "Kâğıt okut" on the home screen opens the
 camera; the first sheet shown is enough to set up the exam, without its Word file. The form is a
 university standard (the header and the rows of the Soru-PÇ table are always in the same place), so
-once the sheet is located the question columns are found from the table's printed vertical lines
-(any number of questions; the columns are fitted as an equally spaced layout snapped to the lines,
-robust to shadows and blur), and the printed texts — `(S1)-PÇ2` per column, the course code and
+once the sheet is located the question columns are found from the table's printed lines (any number
+of questions, up to 20: the table ends where its horizontal lines do, the columns are the vertical
+lines when they come out about equally wide, otherwise an equally spaced layout snapped to the lines;
+robust to shadows, blur and a slightly turned photo; tested on 2, 4, 6 and 10 questions,
+`tools/synthetic/column_variants.py`), and the printed texts — `(S1)-PÇ2` per column, the course code and
 name, the exam kind and term in the title, the group — are read with PaddleOCR's PP-OCRv4 mobile
 recognition model (`models/ppocr-v4-rec.onnx`, Apache-2.0, run with `tract` in Rust; 7 crops read in
 parallel, about 0.2 s per frame on a laptop). Fields are voted over consecutive frames and the exam is
