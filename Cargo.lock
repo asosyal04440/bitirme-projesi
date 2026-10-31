@@ -1317,6 +1317,8 @@ dependencies = [
  "image",
  "libc",
  "rust_xlsxwriter",
+ "serde_json",
+ "zip 9.0.1",
 ]
 
 [[package]]

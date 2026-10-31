@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 237816475;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 53036230;
 
 // Section: executor
 
@@ -519,6 +519,109 @@ fn wire__crate__api__reader__ExamReader_scan_frame_impl(
         },
     )
 }
+fn wire__crate__api__reader__ExamReader_start_recording_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ExamReader_start_recording",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::reader::ExamReader::start_recording(
+                            &*api_that_guard,
+                            api_dir,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__reader__ExamReader_stop_recording_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ExamReader_stop_recording",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::reader::ExamReader::stop_recording(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__scanner__SheetScanner_detect_frame_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -812,6 +915,42 @@ fn wire__crate__api__exam__inspect_exam_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::exam::inspect_exam(api_docx)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__reader__pack_recording_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "pack_recording",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_dir = <String>::sse_decode(&mut deserializer);
+            let api_extra = <Vec<crate::api::reader::RecordingFile>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::reader::pack_recording(api_dir, api_extra)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1258,6 +1397,20 @@ impl SseDecode for Vec<crate::api::exam::QuestionInfo> {
     }
 }
 
+impl SseDecode for Vec<crate::api::reader::RecordingFile> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::reader::RecordingFile>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::reader::ReportSheet> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1374,6 +1527,18 @@ impl SseDecode for crate::api::exam::QuestionInfo {
             outcomes: var_outcomes,
             maximum_score: var_maximumScore,
             maximum_source: var_maximumSource,
+        };
+    }
+}
+
+impl SseDecode for crate::api::reader::RecordingFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_content = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::reader::RecordingFile {
+            name: var_name,
+            content: var_content,
         };
     }
 }
@@ -1535,18 +1700,25 @@ fn pde_ffi_dispatcher_primary_impl(
         9 => {
             wire__crate__api__reader__ExamReader_scan_frame_impl(port, ptr, rust_vec_len, data_len)
         }
-        10 => wire__crate__api__scanner__SheetScanner_detect_frame_impl(
+        10 => wire__crate__api__reader__ExamReader_start_recording_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__scanner__SheetScanner_new_impl(port, ptr, rust_vec_len, data_len),
-        13 => {
+        12 => wire__crate__api__scanner__SheetScanner_detect_frame_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        13 => wire__crate__api__scanner__SheetScanner_new_impl(port, ptr, rust_vec_len, data_len),
+        15 => {
             wire__crate__api__scanner__SheetScanner_warm_up_impl(port, ptr, rust_vec_len, data_len)
         }
-        15 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__exam__inspect_exam_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__reader__pack_recording_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1561,8 +1733,9 @@ fn pde_ffi_dispatcher_sync_impl(
     match func_id {
         2 => wire__crate__api__reader__ExamReader_exam_info_impl(ptr, rust_vec_len, data_len),
         8 => wire__crate__api__reader__ExamReader_reset_scan_impl(ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__scanner__SheetScanner_reset_impl(ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__definition__definition_info_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__reader__ExamReader_stop_recording_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__scanner__SheetScanner_reset_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__definition__definition_info_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1928,6 +2101,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::exam::QuestionInfo>
     for crate::api::exam::QuestionInfo
 {
     fn into_into_dart(self) -> crate::api::exam::QuestionInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::reader::RecordingFile {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.content.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::reader::RecordingFile
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::reader::RecordingFile>
+    for crate::api::reader::RecordingFile
+{
+    fn into_into_dart(self) -> crate::api::reader::RecordingFile {
         self
     }
 }
@@ -2370,6 +2564,16 @@ impl SseEncode for Vec<crate::api::exam::QuestionInfo> {
     }
 }
 
+impl SseEncode for Vec<crate::api::reader::RecordingFile> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::reader::RecordingFile>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::reader::ReportSheet> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2457,6 +2661,14 @@ impl SseEncode for crate::api::exam::QuestionInfo {
         <Vec<String>>::sse_encode(self.outcomes, serializer);
         <Option<String>>::sse_encode(self.maximum_score, serializer);
         <Option<String>>::sse_encode(self.maximum_source, serializer);
+    }
+}
+
+impl SseEncode for crate::api::reader::RecordingFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <Vec<u8>>::sse_encode(self.content, serializer);
     }
 }
 

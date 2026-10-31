@@ -343,7 +343,12 @@ fn evaluate(options: Options) -> Result<(), String> {
         );
         let precomputed = Precomputed(extraction.clone());
         let instrumentation = NoopInstrumentation;
-        let mut use_case = ProcessExamPage::new(&precomputed, &mut repository, &instrumentation);
+        let mut use_case = ProcessExamPage::with_recognition_policy(
+            &precomputed,
+            &mut repository,
+            &instrumentation,
+            exam_infrastructure::recognition::recognition_policy(),
+        );
         if let Some(roster) = &roster {
             use_case = use_case.with_roster(roster);
         }

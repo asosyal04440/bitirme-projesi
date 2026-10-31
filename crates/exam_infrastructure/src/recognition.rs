@@ -56,7 +56,7 @@ impl<'a> RgbImage<'a> {
 pub struct CellReading {
     /// Decoded text, e.g. `17`, `7.5`, `~14` (corrected to 14) or empty (blank cell).
     pub text: String,
-    /// Minimum over frames of the winning class probability.
+    /// Probability of the least certain character read (see [`decode`]).
     pub confidence: f32,
 }
 
@@ -170,6 +170,15 @@ impl CellKind {
 /// blank and the `allowed` characters; other classes are ignored, not
 /// renormalised, so probability spent on an impossible character lowers the
 /// confidence.
+///
+/// The confidence is that of the least certain character read: each
+/// character's best frame. Hesitation in the blank frames between characters
+/// is ignored, which tells right readings from wrong ones much better (on
+/// real handwriting, wrong readings are found 0.84 of the time instead of
+/// 0.71 as the minimum over all frames; `tools/recognizer/calibrate.py`). A
+/// cell read as blank keeps the minimum over all frames. Probability spent on
+/// characters the field cannot hold still counts: the confidence is at most
+/// the smallest share any frame leaves to the allowed ones.
 pub fn decode(probabilities: &[f32], classes: usize, allowed: &str) -> CellReading {
     let alphabet: Vec<char> = ALPHABET.chars().collect();
     let usable: Vec<bool> = (0..classes)
@@ -181,11 +190,14 @@ pub fn decode(probabilities: &[f32], classes: usize, allowed: &str) -> CellReadi
         })
         .collect();
     let mut text = String::new();
-    let mut confidence = if probabilities.is_empty() {
+    let mut any_frame = if probabilities.is_empty() {
         0.0
     } else {
         1.0_f32
     };
+    let mut characters = 1.0_f32;
+    let mut allowed_share = 1.0_f32;
+    let mut run = 0.0_f32;
     let mut previous = 0;
     for frame in probabilities.chunks_exact(classes) {
         let (best, probability) = frame
@@ -197,13 +209,64 @@ pub fn decode(probabilities: &[f32], classes: usize, allowed: &str) -> CellReadi
                 (0, f32::MIN),
                 |acc, item| if item.1 > acc.1 { item } else { acc },
             );
-        confidence = confidence.min(probability);
+        any_frame = any_frame.min(probability);
+        allowed_share = allowed_share.min(
+            frame
+                .iter()
+                .enumerate()
+                .filter(|&(class, _)| usable[class])
+                .map(|(_, p)| p)
+                .sum(),
+        );
+        if best != previous && previous != 0 {
+            characters = characters.min(run);
+        }
         if best != 0 && best != previous {
             text.push(alphabet[best - 1]);
+            run = probability;
+        } else if best != 0 {
+            run = run.max(probability);
         }
         previous = best;
     }
+    if previous != 0 {
+        characters = characters.min(run);
+    }
+    let confidence = if text.is_empty() {
+        any_frame
+    } else {
+        characters.min(allowed_share)
+    };
     CellReading { text, confidence }
+}
+
+/// Confidence from which the recognizer's scores and totals are accepted
+/// without the instructor, measured with `tools/recognizer/calibrate.py`
+/// (synthetic sheets with real digit strokes): with the per-character
+/// confidence of [`decode`], scores 88% accepted at 98.1% right, totals 73% at
+/// 97.2% (the minimum over frames at 0.8 accepted 84% at 96.6% and 75% at
+/// 94.6%). Totals are also checked against the sum of the scores.
+pub const ACCEPTED_FROM: f32 = 0.98;
+/// The same for student numbers (real handwritten numbers of writers the
+/// model never saw): 76% accepted at 92.7% right (before: 60% at 90.5%);
+/// numbers are also checked against the roster.
+pub const NUMBER_ACCEPTED_FROM: f32 = 0.95;
+
+/// The application's recognition policy with the recognizer's calibrated
+/// thresholds for the fields it reads.
+pub fn recognition_policy() -> exam_application::recognition_policy::RecognitionPolicy {
+    use exam_application::recognition_policy::{RecognitionFieldKind, RecognitionPolicy};
+    [
+        (RecognitionFieldKind::Score, ACCEPTED_FROM),
+        (RecognitionFieldKind::DeclaredTotal, ACCEPTED_FROM),
+        (RecognitionFieldKind::StudentNumber, NUMBER_ACCEPTED_FROM),
+    ]
+    .into_iter()
+    .fold(RecognitionPolicy::default(), |policy, (kind, threshold)| {
+        policy
+            .with_minimum_confidence(kind, threshold)
+            .expect("a probability")
+    })
 }
 
 pub struct CellRecognizer {

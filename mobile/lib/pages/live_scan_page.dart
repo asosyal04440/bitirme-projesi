@@ -15,6 +15,7 @@ import '../excel_export.dart';
 import '../src/rust/api/camera.dart';
 import '../src/rust/api/reader.dart';
 import '../storage.dart';
+import '../test_recording.dart';
 import 'detected_exam_page.dart';
 import 'sheet_review_page.dart';
 
@@ -47,6 +48,9 @@ class _LiveScanPageState extends State<LiveScanPage>
   );
   bool _tickVerified = true;
 
+  /// Whether the camera frames are kept for a test recording.
+  bool _recording = false;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +65,7 @@ class _LiveScanPageState extends State<LiveScanPage>
     WakelockPlus.disable();
     _tick.dispose();
     _feed.stop();
+    if (_recording) unawaited(stopTestRecording(widget.exam));
     super.dispose();
   }
 
@@ -121,6 +126,27 @@ class _LiveScanPageState extends State<LiveScanPage>
     );
   }
 
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      await stopTestRecording(widget.exam);
+    } else {
+      await startTestRecording(widget.exam);
+    }
+    if (!mounted) return;
+    setState(() => _recording = !_recording);
+    ShadToaster.of(context).show(
+      ShadToast(
+        title: Text(_recording ? 'Test kaydı başladı' : 'Test kaydı durdu'),
+        description: Text(
+          _recording
+              ? 'Kameradaki kareler saklanıyor. Kâğıtları okutun, sonra '
+                    'kontrol edip onaylayın.'
+              : 'Sınav sayfasından “Test kaydını paylaş” ile gönderin.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _shareExcel() async {
     final file = await writeExamExcel(widget.exam);
     await SharePlus.instance.share(
@@ -178,6 +204,8 @@ class _LiveScanPageState extends State<LiveScanPage>
                     '${widget.exam.info.courseCode ?? widget.exam.title} · '
                     '${widget.exam.label}',
                 count: _saved.length,
+                recording: _recording,
+                onRecord: _toggleRecording,
                 onDiagnostic: () => shareDiagnostic(widget.exam),
                 onExcel: _saved.isEmpty && widget.exam.sheets.isEmpty
                     ? null
@@ -282,12 +310,18 @@ class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.title,
     required this.count,
+    required this.recording,
+    required this.onRecord,
     required this.onDiagnostic,
     this.onExcel,
   });
 
   final String title;
   final int count;
+
+  /// Test recording: whether one runs, and the button that starts or stops it.
+  final bool recording;
+  final VoidCallback onRecord;
 
   /// Shares the current frame with what was found in it (field tests).
   final VoidCallback onDiagnostic;
@@ -316,6 +350,15 @@ class _TopBar extends StatelessWidget {
               ),
             ),
             _Pill(text: '$count kâğıt'),
+            IconButton(
+              tooltip: recording ? 'Test kaydını durdur' : 'Test kaydı',
+              icon: Icon(
+                LucideIcons.circleDot,
+                color: recording ? const Color(0xFFDC2626) : Colors.white70,
+                size: 20,
+              ),
+              onPressed: onRecord,
+            ),
             IconButton(
               tooltip: 'Tanı bilgisi paylaş',
               icon: const Icon(

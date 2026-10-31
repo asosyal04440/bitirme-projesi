@@ -73,7 +73,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 237816475;
+  int get rustContentHash => 53036230;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -133,6 +133,13 @@ abstract class RustLibApi extends BaseApi {
     required CameraFrame frame,
   });
 
+  Future<void> crateApiReaderExamReaderStartRecording({
+    required ExamReader that,
+    required String dir,
+  });
+
+  void crateApiReaderExamReaderStopRecording({required ExamReader that});
+
   Future<DetectUpdate> crateApiScannerSheetScannerDetectFrame({
     required SheetScanner that,
     required CameraFrame frame,
@@ -156,6 +163,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiInitApp();
 
   Future<ExamInfo> crateApiExamInspectExam({required List<int> docx});
+
+  Future<String> crateApiReaderPackRecording({
+    required String dir,
+    required List<RecordingFile> extra,
+  });
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ExamReader;
@@ -549,6 +561,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiReaderExamReaderStartRecording({
+    required ExamReader that,
+    required String dir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+            that,
+            serializer,
+          );
+          sse_encode_String(dir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReaderExamReaderStartRecordingConstMeta,
+        argValues: [that, dir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderStartRecordingConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_start_recording",
+        argNames: ["that", "dir"],
+      );
+
+  @override
+  void crateApiReaderExamReaderStopRecording({required ExamReader that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExamReader(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiReaderExamReaderStopRecordingConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderExamReaderStopRecordingConstMeta =>
+      const TaskConstMeta(
+        debugName: "ExamReader_stop_recording",
+        argNames: ["that"],
+      );
+
+  @override
   Future<DetectUpdate> crateApiScannerSheetScannerDetectFrame({
     required SheetScanner that,
     required CameraFrame frame,
@@ -565,7 +644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -604,7 +683,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -636,7 +715,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -665,7 +744,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -695,7 +774,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_exam_definition(definition, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_exam_info,
@@ -723,7 +802,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -751,7 +830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -768,6 +847,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiExamInspectExamConstMeta =>
       const TaskConstMeta(debugName: "inspect_exam", argNames: ["docx"]);
+
+  @override
+  Future<String> crateApiReaderPackRecording({
+    required String dir,
+    required List<RecordingFile> extra,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dir, serializer);
+          sse_encode_list_recording_file(extra, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReaderPackRecordingConstMeta,
+        argValues: [dir, extra],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReaderPackRecordingConstMeta =>
+      const TaskConstMeta(
+        debugName: "pack_recording",
+        argNames: ["dir", "extra"],
+      );
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ExamReader => wire
@@ -1134,6 +1248,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RecordingFile> dco_decode_list_recording_file(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_recording_file).toList();
+  }
+
+  @protected
   List<ReportSheet> dco_decode_list_report_sheet(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_report_sheet).toList();
@@ -1208,6 +1328,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       outcomes: dco_decode_list_String(arr[1]),
       maximumScore: dco_decode_opt_String(arr[2]),
       maximumSource: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  RecordingFile dco_decode_recording_file(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return RecordingFile(
+      name: dco_decode_String(arr[0]),
+      content: dco_decode_list_prim_u_8_strict(arr[1]),
     );
   }
 
@@ -1764,6 +1896,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RecordingFile> sse_decode_list_recording_file(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RecordingFile>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_recording_file(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<ReportSheet> sse_decode_list_report_sheet(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1879,6 +2025,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       maximumScore: var_maximumScore,
       maximumSource: var_maximumSource,
     );
+  }
+
+  @protected
+  RecordingFile sse_decode_recording_file(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_content = sse_decode_list_prim_u_8_strict(deserializer);
+    return RecordingFile(name: var_name, content: var_content);
   }
 
   @protected
@@ -2387,6 +2541,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_recording_file(
+    List<RecordingFile> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_recording_file(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_report_sheet(
     List<ReportSheet> self,
     SseSerializer serializer,
@@ -2484,6 +2650,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.outcomes, serializer);
     sse_encode_opt_String(self.maximumScore, serializer);
     sse_encode_opt_String(self.maximumSource, serializer);
+  }
+
+  @protected
+  void sse_encode_recording_file(RecordingFile self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_list_prim_u_8_strict(self.content, serializer);
   }
 
   @protected
@@ -2631,6 +2804,14 @@ class ExamReaderImpl extends RustOpaque implements ExamReader {
       .instance
       .api
       .crateApiReaderExamReaderScanFrame(that: this, frame: frame);
+
+  /// Keeps every camera frame scanned from now on in `dir`, with what it led
+  /// to, for a test recording on real sheets (see `recording.rs`).
+  Future<void> startRecording({required String dir}) => RustLib.instance.api
+      .crateApiReaderExamReaderStartRecording(that: this, dir: dir);
+
+  void stopRecording() =>
+      RustLib.instance.api.crateApiReaderExamReaderStopRecording(that: this);
 }
 
 @sealed

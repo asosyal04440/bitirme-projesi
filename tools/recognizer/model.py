@@ -12,9 +12,10 @@ re-implements (`exam_infrastructure::recognition`); change them together.
   class 0 is the CTC blank, then ALPHABET.
 - Decode: greedy CTC (argmax, collapse repeats, drop blanks) over the blank
   and the characters allowed for the field (FIELD_ALPHABETS); other classes
-  are ignored, not renormalised. Confidence is the minimum over frames of the
-  winning probability, so one uncertain frame (including an uncertain blank)
-  lowers the whole cell.
+  are ignored, not renormalised. Confidence is that of the least certain
+  character read (its best frame), at most the smallest share of a frame left
+  to the allowed characters; for a blank cell the minimum over frames of the
+  winning probability.
 """
 
 from __future__ import annotations
@@ -84,13 +85,23 @@ def decode(probabilities: np.ndarray, allowed: str = ALPHABET) -> tuple[str, flo
         masked = np.zeros_like(probabilities)
         masked[:, keep] = probabilities[:, keep]
         probabilities = masked
+    allowed_share = float(probabilities.sum(axis=1).min()) if len(probabilities) else 0.0
     best = probabilities.argmax(axis=1)
-    confidence = float(probabilities.max(axis=1).min()) if len(best) else 0.0
-    chars, previous = [], BLANK
-    for index in best:
-        if index != previous and index != BLANK:
+    winning = probabilities.max(axis=1)
+    # The least certain character (each at its best frame); a blank cell
+    # keeps the minimum over all frames.
+    chars, previous, runs = [], BLANK, []
+    for index, probability in zip(best, winning):
+        if index != BLANK and index != previous:
             chars.append(ALPHABET[index - 1])
+            runs.append(float(probability))
+        elif index != BLANK:
+            runs[-1] = max(runs[-1], float(probability))
         previous = index
+    if runs:
+        confidence = min(min(runs), allowed_share)
+    else:
+        confidence = float(winning.min()) if len(best) else 0.0
     return "".join(chars), confidence
 
 

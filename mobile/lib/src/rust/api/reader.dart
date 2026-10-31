@@ -14,6 +14,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Precomputed`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `analyze`
 
+/// The test recording in `dir` and `extra` files packed in one zip next to
+/// it; returns the zip's path.
+Future<String> packRecording({
+  required String dir,
+  required List<RecordingFile> extra,
+}) => RustLib.instance.api.crateApiReaderPackRecording(dir: dir, extra: extra);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExamReader>>
 abstract class ExamReader implements RustOpaqueInterface {
   /// Re-evaluates a sheet with the values the instructor checked or
@@ -91,6 +98,12 @@ abstract class ExamReader implements RustOpaqueInterface {
   /// result once, as soon as the sheet is read reliably. The next sheet is
   /// read when it comes into view.
   Future<ScanUpdate> scanFrame({required CameraFrame frame});
+
+  /// Keeps every camera frame scanned from now on in `dir`, with what it led
+  /// to, for a test recording on real sheets (see `recording.rs`).
+  Future<void> startRecording({required String dir});
+
+  void stopRecording();
 }
 
 class CellResult {
@@ -281,6 +294,25 @@ class OutcomeResult {
           percent == other.percent &&
           complete == other.complete &&
           maximumKnown == other.maximumKnown;
+}
+
+/// A file packed with a test recording, e.g. the checked values.
+class RecordingFile {
+  final String name;
+  final Uint8List content;
+
+  const RecordingFile({required this.name, required this.content});
+
+  @override
+  int get hashCode => name.hashCode ^ content.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecordingFile &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          content == other.content;
 }
 
 /// One saved sheet as it goes into the Excel report.

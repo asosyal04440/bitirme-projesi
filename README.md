@@ -101,11 +101,33 @@ straight to scanning. The Word import and the roster remain optional.
 another, the Soru-PÇ table is outlined on the preview, and each sheet is saved with a green tick
 (amber when a value needs checking) as soon as it is read, without taking photos. The sheet found
 in one frame is tracked in the next (about 20 ms instead of a 180 ms full search), the readings of
-consecutive frames are combined (agreeing frames raise the confidence), and a sheet stays saved
-while it is in view; the next one is recognised by its different student number. The Excel report
-is rewritten after every saved sheet. On the Android emulator a tracked frame takes about 140 ms
-and a sheet is saved 0.2–0.9 s after it comes into view. Holding the phone sideways over the top
-of the sheet (header and table only) also works.
+consecutive frames are combined (agreeing frames raise the confidence; much blurred frames are left
+out), and reading stops when one more frame would hardly change the combined reading (the stopping
+rule of Bulatov, Fedotova and Arlazarov, ICPR 2020). A saved sheet is recognised when shown again
+by its handwriting together with its values, so it is not saved twice; the student number is not
+used for that, since it is the field most often misread. The Excel report is rewritten after every
+saved sheet. On the Android emulator a tracked frame takes about 140 ms and a sheet is saved
+0.2–0.9 s after it comes into view. Holding the phone sideways over the top of the sheet (header and
+table only) also works.
+
+**Test recordings.** The record button on the scanning screen keeps every camera frame. Once the
+sheets are checked, the exam page shares the recording with the confirmed values as a zip; on a
+computer `RECORDING=<folder> cargo test --release live_replay -- --ignored --nocapture` replays it
+through the scanner and scores what is saved: a test set of real sheets (the way video document
+recognition is measured on MIDV-500). `live_eval` does the same with synthetic sheets shown as
+hand-held clips (20 sheets, 14 frames each, a third of them blurred): with the stopping rule, the
+blurred frames left out and the handwriting-and-values check, 18 sheets are saved (before: 17; one
+was taken for another student's and dropped), none twice, 61.1% of them read entirely right (before:
+52.9%), after 5.1 frames on average (before: 5.3). The 2 not saved are never found on their near-white,
+shadowed desk.
+
+**Papers tried and what they gave** (measured, not assumed): calibrated confidence after the
+reject-option work on handwriting verification — fewer wrong readings accepted silently (scores:
+3.4% → 1.9% at more coverage; `tools/recognizer/README.md`); the video stopping rule (above);
+fitting the outline to the form's line junctions after Mahajan et al. (CBDAR 2019) — no gain on the
+synthetic sheets and fewer students identified (85.8% → 83.3%), so not kept; self-training on the
+model's own readings after Wolf and Fink (ICPR 2022) — worse for this model, while the same training
+on checked values helps, so the instructor's corrections are the way to adapt it.
 
 ```text
 cd mobile

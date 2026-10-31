@@ -9,7 +9,7 @@ student number. Names are not read; the student is identified by number.
 | Input | RGB crop → bilinear resize to height 32, width scaled (16–512, multiple of 4), values in [-1, 1] |
 | Output | per-frame probabilities over blank + `0123456789.~` |
 | Classes | `.` is any decimal separator (written `,` or `.`); `~` means a crossed-out correction is present |
-| Confidence | minimum over frames of the winning probability |
+| Confidence | the least certain character (each at its best frame); blank cells: minimum over frames |
 | Runtime | `exam_infrastructure::recognition::CellRecognizer` (Rust, `tract-onnx`, no native libraries) |
 
 The preprocessing and decoding in `model.py` are the contract re-implemented in Rust;
@@ -97,6 +97,43 @@ frames. Full numbers: `models/digit-crnn-v4.metrics.json` and `models/digit-crnn
 - Student-number errors are mostly one misread digit; matching the number against the course roster
   (unique candidate at edit distance ≤ 1) handles them.
 - A first run with max LR 2e-3 stalled on the CTC "all blank" plateau; max LR 1e-3 is used since.
+
+## Confidence and acceptance (`calibrate.py`)
+
+Which readings the app accepts without the instructor is decided on measured error, after the
+reject-option work on handwriting verification. `calibrate.py` scores each field kind: accuracy and
+coverage of the accepted cells at each threshold and the calibration error. Student numbers are
+measured on real handwriting (the half of the unseen CVL writers `self_train.py` holds out), score
+and total cells on synthetic sheets with real digit strokes.
+
+The confidence used to be the minimum over all frames of the winning probability, which also counts
+the hesitation in the blank frames between digits. Taking the least certain *character* (each at
+its best frame) separates right from wrong readings much better:
+
+| How well wrong readings are told apart (AUROC) | number | score | total |
+|---|---|---|---|
+| minimum over frames (before) | 0.711 | 0.792 | 0.815 |
+| least certain character (now) | **0.839** | **0.897** | **0.875** |
+
+With it the app accepts from 0.98 (scores, totals) and 0.95 (numbers), set in
+`exam_infrastructure::recognition`:
+
+| Field | Before (0.8, minimum over frames) | Now |
+|---|---|---|
+| Score | 84% accepted, 96.6% of them right | 88% accepted, 98.1% right |
+| Student number | 60% accepted, 90.5% right | 76% accepted, 92.7% right |
+| Total | 75% accepted, 94.6% right | 73% accepted, 97.2% right |
+
+No threshold reaches 99% on every field with useful coverage; the other checks (total = sum of the
+scores, the roster) catch much of the rest.
+
+## Adapting to new handwriting (`self_train.py`)
+
+Self-training on the model's own confident readings (Wolf and Fink, ICPR 2022) was tried on the
+unseen CVL writers and makes `digit-crnn-v4` worse (85.6% → 80.4% after 4 cycles; it collapses with
+the strong distortion), because this model is already strong and its wrong pseudo-labels reinforce
+themselves. The same loop on true labels raises it (85.6% → 87.0% in 2 cycles), so adaptation to
+real sheets should use the cells the instructor confirmed or corrected. Details in the script.
 
 ## Tests
 

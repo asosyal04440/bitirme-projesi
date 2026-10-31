@@ -94,7 +94,7 @@ fn bundled_model_reads_cells_like_the_python_reference() {
 }
 
 #[test]
-fn decode_collapses_repeats_drops_blanks_and_keeps_the_weakest_frame() {
+fn decode_collapses_repeats_drops_blanks_and_keeps_the_weakest_character() {
     let classes = ALPHABET.chars().count() + 1;
     let frame = |class: usize, p: f32| {
         let mut row = vec![(1.0 - p) / (classes - 1) as f32; classes];
@@ -116,7 +116,9 @@ fn decode_collapses_repeats_drops_blanks_and_keeps_the_weakest_frame() {
     let probabilities: Vec<f32> = path.iter().flat_map(|&(c, p)| frame(c, p)).collect();
     let reading = decode(&probabilities, classes, ALPHABET);
     assert_eq!(reading.text, "117.5~");
-    assert!((reading.confidence - 0.6).abs() < 1e-6);
+    // The weakest character ('~' at 0.8); the hesitant blank (0.6) between
+    // the two 1s does not count.
+    assert!((reading.confidence - 0.8).abs() < 1e-6);
     assert!(reading.has_correction());
     assert_eq!(reading.value_text(), "117.5");
     assert!(decode(&frame(0, 0.9), classes, ALPHABET).is_blank());

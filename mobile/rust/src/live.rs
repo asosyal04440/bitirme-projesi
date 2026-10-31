@@ -18,22 +18,39 @@ use exam_infrastructure::vision::Point;
 use image::RgbImage;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-/// Readings combined at most (the newest frames).
-const WINDOW: usize = 4;
+/// Readings combined at most (the newest frames); a sheet still unsettled
+/// after this many frames is saved for review.
+const WINDOW: usize = 10;
 /// Frames without a sheet before tracking stops and the readings are dropped.
 const LOST_AFTER: u32 = 3;
-/// Frames a sheet may stay uncertain before it is saved for review anyway
-/// (about a second), so the instructor is never kept waiting on a sheet whose
-/// values cannot all be read with certainty, e.g. a total that does not add up.
-const PATIENCE: u32 = 5;
+/// When to stop reading a sheet (Bulatov, Fedotova, Arlazarov, ICPR 2020:
+/// stopping the text recognition in a video): the expected change of the
+/// combined reading if one more frame came, modelled by each frame so far
+/// coming again, plus `STOP_PRIOR` for a frame unlike any so far, averaged.
+/// Below `STOP_CHANGE` another frame is not worth waiting for.
+const STOP_PRIOR: f32 = 0.1;
+const STOP_CHANGE: f32 = 0.05;
+/// Frames a settled sheet that is not certain (a value not accepted, a total
+/// that does not add up) is read before it is saved for review: waiting
+/// longer would not change it.
+const SETTLED_UNCERTAIN: usize = 4;
+/// Frames a sheet is shown for at most before it is saved, sharp or not
+/// (about two seconds), so the instructor is never kept waiting.
+const LONGEST: usize = 12;
+/// Frames much less sharp than the sharpest of the sheet so far are not
+/// read into it (motion blur, focus hunting).
+const SHARP_ENOUGH: f32 = 0.6;
 /// Size each handwritten cell is reduced to for [`ink_signature`].
 const SIGNATURE_CELL: (u32, u32) = (16, 6);
-/// Likeness of two signatures from which they are the same sheet (another
-/// sheet's handwriting gives about 0.1, the same sheet moved and blurred 0.6
-/// and more).
+/// Likeness of two signatures from which they may be the same sheet. On 20
+/// synthetic sheets the same sheet moved gives 0.9 and more, moved and much
+/// blurred down to about 0.5; another student's sheet mostly 0.1 to 0.35 but
+/// up to 0.5 (the layout every sheet shares: digits at the left of their
+/// cells, the long number), so [`same_sheet`] also asks for the same values.
 const SAME_INK: f32 = 0.4;
-/// Combined confidence the student number needs before a sheet is saved.
-const NUMBER_CONFIDENCE: f32 = 0.8;
+/// Combined confidence the student number needs before a sheet is saved:
+/// the recognizer's calibrated acceptance threshold.
+const NUMBER_CONFIDENCE: f32 = exam_infrastructure::recognition::NUMBER_ACCEPTED_FROM;
 /// Review reasons that mean the values cannot be right yet.
 const BLOCKING: [&str; 3] = [
     "total_mismatch",
@@ -48,16 +65,20 @@ pub(crate) struct LiveState {
     recent: Vec<SheetReading>,
     /// Handwriting of the sheet whose frames are in `recent`.
     ink: Option<Vec<f32>>,
-    /// Frames the sheet in view has been read without being saved.
-    reading_for: u32,
+    /// Sharpness of the sharpest frame of the sheet in view.
+    sharpest: f32,
+    /// Frames the sheet in view has been seen in, sharp or not.
+    seen: usize,
     /// Every sheet saved while scanning, so that one shown again is not
     /// saved twice.
     saved: Vec<Saved>,
 }
 
-/// What identifies the last saved sheet when it is seen again.
+/// What identifies a saved sheet when it is seen again.
 struct Saved {
     ink: Vec<f32>,
+    /// What was read in each cell.
+    texts: Vec<String>,
 }
 
 pub(crate) fn scan(reader: &ExamReader, frame: CameraFrame) -> anyhow::Result<ScanUpdate> {
@@ -68,6 +89,13 @@ pub(crate) fn scan(reader: &ExamReader, frame: CameraFrame) -> anyhow::Result<Sc
         .lock()
         .map_err(|_| anyhow!("live scan state is poisoned"))?;
     let update = step(reader, &mut state, &rgb)?;
+    drop(state);
+    if let Ok(mut recording) = reader.recording.lock() {
+        if let Some(recording) = recording.as_mut() {
+            // A frame that cannot be kept must not stop the scanning.
+            let _ = recording.add(&rgb, &update);
+        }
+    }
     Ok(ScanUpdate {
         millis: started.elapsed().as_millis().min(u128::from(u32::MAX)) as u32,
         ..update
@@ -107,7 +135,8 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
             state.previous = None;
             state.recent.clear();
             state.ink = None;
-            state.reading_for = 0;
+            state.sharpest = 0.0;
+            state.seen = 0;
         }
         return Ok(update(ScanState::Searching, Vec::new(), None, 0));
     }
@@ -134,50 +163,159 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
     // mixed with the previous sheet's. (Not a different student number: one
     // blurred frame reads it differently, and the frames gathered so far
     // would be thrown away.)
+    // A much blurred frame says little about which sheet is in view or what
+    // it says: it neither starts another sheet nor is read into this one.
     let ink = ink_signature(rgb, &reading);
-    let other_sheet = state
-        .ink
-        .as_ref()
-        .is_some_and(|before| likeness(before, &ink) < SAME_INK);
+    let sharpness = cell_sharpness(rgb, &reading);
+    let sharp = sharpness >= SHARP_ENOUGH * state.sharpest;
+    let other_sheet = sharp
+        && state
+            .ink
+            .as_ref()
+            .is_some_and(|before| likeness(before, &ink) < SAME_INK);
     if other_sheet {
         state.recent.clear();
-        state.reading_for = 0;
+        state.sharpest = 0.0;
+        state.seen = 0;
     }
+    state.seen += 1;
     if other_sheet || state.ink.is_none() {
         state.ink = Some(ink.clone());
     }
-    state.recent.push(reading);
-    if state.recent.len() > WINDOW {
-        state.recent.remove(0);
+    state.sharpest = state.sharpest.max(sharpness);
+    if sharp || state.recent.is_empty() {
+        state.recent.push(reading);
+        if state.recent.len() > WINDOW {
+            state.recent.remove(0);
+        }
     }
     let fused = fuse_readings(&state.recent).expect("at least one reading");
     let frames = state.recent.len();
 
+    let texts = cell_texts(&fused);
+    let sheet_ink = state.ink.clone().unwrap_or(ink);
     if state
         .saved
         .iter()
-        .any(|saved| likeness(&saved.ink, &ink) >= SAME_INK)
+        .any(|saved| same_sheet(saved, &sheet_ink, &texts))
     {
         return Ok(update(ScanState::AlreadySaved, table, None, frames));
     }
     let id = sheet_id();
     let result = reader.sheet_result(id.clone(), rgb, &fused, false)?;
 
-    state.reading_for += 1;
     let verified = certain(&result);
-    if verified || state.reading_for >= PATIENCE {
+    let settled = frames >= 2 && expected_change(&state.recent) <= STOP_CHANGE;
+    if (settled && (verified || frames >= SETTLED_UNCERTAIN))
+        || frames >= WINDOW
+        || state.seen >= LONGEST
+    {
         let result = reader.sheet_result(id, rgb, &fused, true)?;
         state.saved.push(Saved {
-            ink: state.ink.clone().unwrap_or(ink),
+            ink: sheet_ink,
+            texts,
         });
+        // The next sheet may be laid on this one: it is followed by its own
+        // handwriting from its first frame.
+        state.ink = None;
         state.recent.clear();
-        state.reading_for = 0;
+        state.sharpest = 0.0;
+        state.seen = 0;
         return Ok(ScanUpdate {
             verified,
             ..update(ScanState::Saved, table, Some(result), frames)
         });
     }
     Ok(update(ScanState::Reading, table, None, frames))
+}
+
+/// The expected change of the combined reading if one more frame came
+/// (see [`STOP_PRIOR`]): each frame so far is tried as the next one.
+fn expected_change(readings: &[SheetReading]) -> f32 {
+    let Some(now) = fuse_readings(readings) else {
+        return 1.0;
+    };
+    let mut total = STOP_PRIOR;
+    let mut extended = readings.to_vec();
+    for reading in readings {
+        extended.push(reading.clone());
+        if let Some(next) = fuse_readings(&extended) {
+            total += reading_distance(&now, &next);
+        }
+        extended.pop();
+    }
+    total / (readings.len() + 1) as f32
+}
+
+/// Mean normalised edit distance between the texts of the read cells.
+fn reading_distance(a: &SheetReading, b: &SheetReading) -> f32 {
+    let pairs: Vec<(&str, &str)> = a
+        .fields
+        .iter()
+        .zip(&b.fields)
+        .filter_map(|(x, y)| {
+            Some((
+                x.reading.as_ref()?.text.as_str(),
+                y.reading.as_ref()?.text.as_str(),
+            ))
+        })
+        .collect();
+    if pairs.is_empty() {
+        return 0.0;
+    }
+    pairs
+        .iter()
+        .map(|(x, y)| {
+            let longest = x.chars().count().max(y.chars().count()).max(1);
+            edit_distance(x, y) as f32 / longest as f32
+        })
+        .sum::<f32>()
+        / pairs.len() as f32
+}
+
+fn edit_distance(a: &str, b: &str) -> usize {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let mut previous: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.iter().enumerate() {
+        let mut current = vec![i + 1];
+        for (j, cb) in b.iter().enumerate() {
+            current.push(
+                (current[j] + 1)
+                    .min(previous[j + 1] + 1)
+                    .min(previous[j] + usize::from(ca != cb)),
+            );
+        }
+        previous = current;
+    }
+    previous[b.len()]
+}
+
+/// How sharp the handwritten cells are: the mean absolute Laplacian of their
+/// darkest channel (blur flattens strokes).
+fn cell_sharpness(rgb: &RgbImage, reading: &SheetReading) -> f32 {
+    let (w, h) = (48_u32, 18_u32);
+    let mut total = 0.0;
+    let mut count = 0;
+    for field in reading.fields.iter().filter(|f| f.reading.is_some()) {
+        let cell = warp_quad(rgb, &field.quad, w, h);
+        let at = |x: u32, y: u32| {
+            let p = cell.get_pixel(x, y);
+            f32::from(p[0].min(p[1]).min(p[2]))
+        };
+        for y in 1..h - 1 {
+            for x in 1..w - 1 {
+                total +=
+                    (4.0 * at(x, y) - at(x - 1, y) - at(x + 1, y) - at(x, y - 1) - at(x, y + 1))
+                        .abs();
+                count += 1;
+            }
+        }
+    }
+    if count == 0 {
+        0.0
+    } else {
+        total / count as f32
+    }
 }
 
 /// Every score and the total accepted and consistent, the number clear.
@@ -219,6 +357,33 @@ fn similar_numbers(a: &str, b: &str) -> bool {
         previous = current;
     }
     previous[b.len()] <= 1
+}
+
+/// A saved sheet seen again: the same handwriting and mostly the same values.
+/// Handwriting alone is not enough (a much blurred frame of the same sheet
+/// and another student's sheet can come out about as alike); when in doubt
+/// the sheet is saved again, since a duplicate is easily deleted while a
+/// sheet taken for another and dropped would go unnoticed.
+fn same_sheet(saved: &Saved, ink: &[f32], texts: &[String]) -> bool {
+    if likeness(&saved.ink, ink) < SAME_INK {
+        return false;
+    }
+    let written = saved
+        .texts
+        .iter()
+        .zip(texts)
+        .filter(|(a, b)| !a.is_empty() || !b.is_empty());
+    let (count, equal) = written.fold((0, 0), |(n, e), (a, b)| (n + 1, e + usize::from(a == b)));
+    count == 0 || 2 * equal >= count
+}
+
+/// What was read in each cell of `reading`.
+fn cell_texts(reading: &SheetReading) -> Vec<String> {
+    reading
+        .fields
+        .iter()
+        .filter_map(|f| f.reading.as_ref().map(|r| r.text.clone()))
+        .collect()
 }
 
 /// The ink in the sheet's handwritten cells (number, scores, total), each
@@ -608,14 +773,18 @@ mod tests {
     }
 
     /// Signature of the cells of `image` moved by `(dx, dy)` and blurred.
+    /// The signature of `image` moved by `(dx, dy)` (and blurred), the sheet
+    /// followed from where it was in the unmoved frame, as live scanning does.
     fn signature(reader: &ExamReader, image: &RgbImage, dx: i64, dy: i64, blur: f32) -> Vec<f32> {
+        let still = frame_to_rgb(&frame(image, 0, 0)).unwrap();
+        let previous = reader.analyzer.locate(&still, None).page_quad;
         let rgb = frame_to_rgb(&frame(image, dx, dy)).unwrap();
         let rgb = if blur > 0.0 {
             image::imageops::blur(&rgb, blur)
         } else {
             rgb
         };
-        let located = reader.analyzer.locate(&rgb, None);
+        let located = reader.analyzer.locate(&rgb, Some(&previous));
         let reading = reader.analyzer.read_at(&rgb, &located).unwrap();
         ink_signature(&rgb, &reading)
     }
@@ -626,17 +795,19 @@ mod tests {
         let sheets = [sheet(0), sheet(1), sheet(2)];
         for (index, image) in sheets.iter().enumerate() {
             let still = signature(&reader, image, 0, 0, 0.0);
-            for (dx, dy, blur) in [(6, -4, 0.0), (-3, 5, 1.5), (2, 2, 3.0)] {
-                let moved = signature(&reader, image, dx, dy, blur);
-                let alike = likeness(&still, &moved);
+            // Moved, as between frames of a hand-held phone. (Much blurred
+            // frames can come out less alike; `same_sheet` then also asks
+            // for the same values.)
+            for (dx, dy) in [(6, -4), (-3, 5), (2, 2)] {
+                let alike = likeness(&still, &signature(&reader, image, dx, dy, 0.0));
                 assert!(
-                    alike >= SAME_INK + 0.1,
-                    "sheet {index} ({dx},{dy},{blur}): {alike}"
+                    alike >= SAME_INK + 0.3,
+                    "sheet {index} ({dx},{dy}): {alike}"
                 );
             }
             for (other, image) in sheets.iter().enumerate().skip(index + 1) {
                 let alike = likeness(&still, &signature(&reader, image, 0, 0, 0.0));
-                assert!(alike < SAME_INK - 0.2, "sheets {index}/{other}: {alike}");
+                assert!(alike < SAME_INK, "sheets {index}/{other}: {alike}");
             }
         }
     }

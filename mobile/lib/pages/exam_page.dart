@@ -8,6 +8,7 @@ import '../app_state.dart';
 import '../course_students.dart';
 import '../excel_export.dart';
 import '../storage.dart';
+import '../test_recording.dart';
 import 'detected_exam_page.dart';
 import 'live_scan_page.dart';
 import 'sheet_review_page.dart';
@@ -133,6 +134,16 @@ class _ExamPageState extends State<ExamPage> {
     );
   }
 
+  Future<void> _shareRecordings() async {
+    final count = await shareTestRecordings(widget.exam);
+    if (count == 0) {
+      _toast(
+        'Test kaydı yok',
+        'Tarama ekranındaki kayıt düğmesiyle bir test kaydı başlatın.',
+      );
+    }
+  }
+
   void _toast(String title, String description) {
     if (!mounted) return;
     ShadToaster.of(context).show(
@@ -159,6 +170,10 @@ class _ExamPageState extends State<ExamPage> {
               icon: const Icon(LucideIcons.pencil, size: 18),
               onPressed: _details,
             ),
+          ShadIconButton.ghost(
+            icon: const Icon(LucideIcons.circleDot, size: 18),
+            onPressed: _shareRecordings,
+          ),
           ShadIconButton.ghost(
             icon: const Icon(LucideIcons.trash2, size: 18),
             onPressed: _delete,

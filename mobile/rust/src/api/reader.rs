@@ -108,6 +108,8 @@ pub struct ExamReader {
     pub(crate) live: Mutex<crate::live::LiveState>,
     /// The last photo or camera frame and what was found in it.
     pub(crate) last_seen: Mutex<Option<crate::diagnostics::Seen>>,
+    /// Where camera frames are kept while a test recording runs.
+    pub(crate) recording: Mutex<Option<crate::recording::Recording>>,
 }
 
 /// What the reader saw in the last photo or camera frame, to share when a
@@ -270,6 +272,7 @@ impl ExamReader {
             sessions: Mutex::new(InMemorySessionRepository::default()),
             live: Mutex::new(crate::live::LiveState::default()),
             last_seen: Mutex::new(None),
+            recording: Mutex::new(None),
         })
     }
 
@@ -400,6 +403,24 @@ impl ExamReader {
         crate::live::scan(self, frame)
     }
 
+    /// Keeps every camera frame scanned from now on in `dir`, with what it led
+    /// to, for a test recording on real sheets (see `recording.rs`).
+    pub fn start_recording(&self, dir: String) -> anyhow::Result<()> {
+        let recording = crate::recording::Recording::start(std::path::Path::new(&dir))?;
+        *self
+            .recording
+            .lock()
+            .map_err(|_| anyhow!("recording is poisoned"))? = Some(recording);
+        Ok(())
+    }
+
+    #[flutter_rust_bridge::frb(sync)]
+    pub fn stop_recording(&self) {
+        if let Ok(mut recording) = self.recording.lock() {
+            *recording = None;
+        }
+    }
+
     /// Forgets the sheet being scanned and the last saved one, e.g. when the
     /// scanning screen is opened again.
     #[flutter_rust_bridge::frb(sync)]
@@ -516,7 +537,12 @@ impl ExamReader {
 
         let precomputed = Precomputed(extraction.clone());
         let instrumentation = NoopInstrumentation;
-        let mut use_case = ProcessExamPage::new(&precomputed, &mut *repository, &instrumentation);
+        let mut use_case = ProcessExamPage::with_recognition_policy(
+            &precomputed,
+            &mut *repository,
+            &instrumentation,
+            exam_infrastructure::recognition::recognition_policy(),
+        );
         if let Some(roster) = &self.roster {
             use_case = use_case.with_roster(roster);
         }
@@ -682,6 +708,20 @@ fn region_from(values: &[f32]) -> Option<SourceRegion> {
     BoundingBox::new(*x, *y, *width, *height)
         .ok()
         .map(|bounds| SourceRegion::new(0, bounds))
+}
+
+/// A file packed with a test recording, e.g. the checked values.
+pub struct RecordingFile {
+    pub name: String,
+    pub content: Vec<u8>,
+}
+
+/// The test recording in `dir` and `extra` files packed in one zip next to
+/// it; returns the zip's path.
+pub fn pack_recording(dir: String, extra: Vec<RecordingFile>) -> anyhow::Result<String> {
+    let extra: Vec<(String, Vec<u8>)> = extra.into_iter().map(|f| (f.name, f.content)).collect();
+    let zip = crate::recording::pack(std::path::Path::new(&dir), &extra)?;
+    Ok(zip.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]

@@ -169,6 +169,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QuestionInfo> dco_decode_list_question_info(dynamic raw);
 
   @protected
+  List<RecordingFile> dco_decode_list_recording_file(dynamic raw);
+
+  @protected
   List<ReportSheet> dco_decode_list_report_sheet(dynamic raw);
 
   @protected
@@ -194,6 +197,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   QuestionInfo dco_decode_question_info(dynamic raw);
+
+  @protected
+  RecordingFile dco_decode_recording_file(dynamic raw);
 
   @protected
   ReportSheet dco_decode_report_sheet(dynamic raw);
@@ -368,6 +374,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RecordingFile> sse_decode_list_recording_file(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ReportSheet> sse_decode_list_report_sheet(SseDeserializer deserializer);
 
   @protected
@@ -401,6 +412,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   QuestionInfo sse_decode_question_info(SseDeserializer deserializer);
+
+  @protected
+  RecordingFile sse_decode_recording_file(SseDeserializer deserializer);
 
   @protected
   ReportSheet sse_decode_report_sheet(SseDeserializer deserializer);
@@ -622,6 +636,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_recording_file(
+    List<RecordingFile> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_report_sheet(
     List<ReportSheet> self,
     SseSerializer serializer,
@@ -662,6 +682,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_question_info(QuestionInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recording_file(RecordingFile self, SseSerializer serializer);
 
   @protected
   void sse_encode_report_sheet(ReportSheet self, SseSerializer serializer);
