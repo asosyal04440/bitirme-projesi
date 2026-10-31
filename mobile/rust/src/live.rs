@@ -5,13 +5,15 @@
 //! full search only when it was lost), its cells are read, and the readings of
 //! the last few frames are combined. As soon as the combined reading is certain
 //! (every score and the total accepted, the total adds up, the student number
-//! clear) the sheet is saved. It stays saved while it is in view; the next
-//! sheet is recognised by its different student number.
+//! clear) the sheet is saved. It stays saved while it is in view, and when it
+//! is shown again; the next sheet is recognised by its different handwriting
+//! (what is read can differ from frame to frame, the ink in the cells hardly).
 
 use crate::api::camera::{CameraFrame, FrameFormat, ScanState, ScanUpdate};
 use crate::api::reader::{ExamReader, SheetResult, NUMBER_FIELD};
 use anyhow::{anyhow, bail};
 use exam_infrastructure::sheet::{fuse_readings, SheetReading};
+use exam_infrastructure::vision::warp_quad;
 use exam_infrastructure::vision::Point;
 use image::RgbImage;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -24,6 +26,12 @@ const LOST_AFTER: u32 = 3;
 /// (about a second), so the instructor is never kept waiting on a sheet whose
 /// values cannot all be read with certainty, e.g. a total that does not add up.
 const PATIENCE: u32 = 5;
+/// Size each handwritten cell is reduced to for [`ink_signature`].
+const SIGNATURE_CELL: (u32, u32) = (16, 6);
+/// Likeness of two signatures from which they are the same sheet (another
+/// sheet's handwriting gives about 0.1, the same sheet moved and blurred 0.6
+/// and more).
+const SAME_INK: f32 = 0.4;
 /// Combined confidence the student number needs before a sheet is saved.
 const NUMBER_CONFIDENCE: f32 = 0.8;
 /// Review reasons that mean the values cannot be right yet.
@@ -38,15 +46,18 @@ pub(crate) struct LiveState {
     previous: Option<[Point; 4]>,
     misses: u32,
     recent: Vec<SheetReading>,
+    /// Handwriting of the sheet whose frames are in `recent`.
+    ink: Option<Vec<f32>>,
     /// Frames the sheet in view has been read without being saved.
     reading_for: u32,
-    last_saved: Option<Saved>,
+    /// Every sheet saved while scanning, so that one shown again is not
+    /// saved twice.
+    saved: Vec<Saved>,
 }
 
-/// What identifies the last saved sheet while it stays in view.
+/// What identifies the last saved sheet when it is seen again.
 struct Saved {
-    number: String,
-    values: Vec<String>,
+    ink: Vec<f32>,
 }
 
 pub(crate) fn scan(reader: &ExamReader, frame: CameraFrame) -> anyhow::Result<ScanUpdate> {
@@ -95,6 +106,7 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
         if state.misses >= LOST_AFTER {
             state.previous = None;
             state.recent.clear();
+            state.ink = None;
             state.reading_for = 0;
         }
         return Ok(update(ScanState::Searching, Vec::new(), None, 0));
@@ -118,15 +130,21 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
         .map_err(|e| anyhow!("{e}"))?;
     seen.reading = Some(reading.clone());
     reader.remember(seen);
-    // A fresh search, or a clearly different student number, means another
-    // sheet: its frames must not be mixed with the previous sheet's.
-    let fused_number = fuse_readings(&state.recent).map(|f| number_text(&f));
-    let other_sheet = fused_number
-        .as_deref()
-        .is_some_and(|n| !similar_numbers(n, &number_text(&reading)));
-    if !located.tracked || other_sheet {
+    // Different handwriting means another sheet: its frames must not be
+    // mixed with the previous sheet's. (Not a different student number: one
+    // blurred frame reads it differently, and the frames gathered so far
+    // would be thrown away.)
+    let ink = ink_signature(rgb, &reading);
+    let other_sheet = state
+        .ink
+        .as_ref()
+        .is_some_and(|before| likeness(before, &ink) < SAME_INK);
+    if other_sheet {
         state.recent.clear();
         state.reading_for = 0;
+    }
+    if other_sheet || state.ink.is_none() {
+        state.ink = Some(ink.clone());
     }
     state.recent.push(reading);
     if state.recent.len() > WINDOW {
@@ -135,25 +153,23 @@ fn step(reader: &ExamReader, state: &mut LiveState, rgb: &RgbImage) -> anyhow::R
     let fused = fuse_readings(&state.recent).expect("at least one reading");
     let frames = state.recent.len();
 
-    let id = sheet_id();
-    let result = reader.sheet_result(id.clone(), rgb, &fused, false)?;
-    let saved_now = Saved {
-        number: number_text(&fused),
-        values: result.cells.iter().map(|c| c.text.clone()).collect(),
-    };
     if state
-        .last_saved
-        .as_ref()
-        .is_some_and(|last| same_sheet(last, &saved_now))
+        .saved
+        .iter()
+        .any(|saved| likeness(&saved.ink, &ink) >= SAME_INK)
     {
         return Ok(update(ScanState::AlreadySaved, table, None, frames));
     }
+    let id = sheet_id();
+    let result = reader.sheet_result(id.clone(), rgb, &fused, false)?;
 
     state.reading_for += 1;
     let verified = certain(&result);
     if verified || state.reading_for >= PATIENCE {
         let result = reader.sheet_result(id, rgb, &fused, true)?;
-        state.last_saved = Some(saved_now);
+        state.saved.push(Saved {
+            ink: state.ink.clone().unwrap_or(ink),
+        });
         state.recent.clear();
         state.reading_for = 0;
         return Ok(ScanUpdate {
@@ -183,17 +199,8 @@ fn certain(result: &SheetResult) -> bool {
             .any(|i| BLOCKING.contains(&i.reason.as_str()))
 }
 
-fn number_text(reading: &SheetReading) -> String {
-    reading
-        .fields
-        .iter()
-        .find(|f| f.field_key == "student.number")
-        .and_then(|f| f.reading.as_ref())
-        .map(|r| r.value_text())
-        .unwrap_or_default()
-}
-
 /// Numbers that differ in at most one digit (a misread) count as the same.
+#[cfg(test)]
 fn similar_numbers(a: &str, b: &str) -> bool {
     if a.is_empty() || b.is_empty() {
         return true;
@@ -214,18 +221,51 @@ fn similar_numbers(a: &str, b: &str) -> bool {
     previous[b.len()] <= 1
 }
 
-fn same_sheet(last: &Saved, now: &Saved) -> bool {
-    if !last.number.is_empty() && !now.number.is_empty() {
-        return similar_numbers(&last.number, &now.number);
+/// The ink in the sheet's handwritten cells (number, scores, total), each
+/// reduced to a few pixels: the same sheet gives about the same signature in
+/// every frame, however its digits are read; another sheet does not.
+fn ink_signature(rgb: &RgbImage, reading: &SheetReading) -> Vec<f32> {
+    let (w, h) = SIGNATURE_CELL;
+    let mut signature = Vec::new();
+    for field in reading.fields.iter().filter(|f| f.reading.is_some()) {
+        let cell = warp_quad(rgb, &field.quad, w, h);
+        // The weakest channel: red, blue and black ink are all dark in it.
+        let values: Vec<f32> = cell
+            .pixels()
+            .map(|p| f32::from(p[0].min(p[1]).min(p[2])))
+            .collect();
+        let mut sorted = values.clone();
+        sorted.sort_by(f32::total_cmp);
+        let paper = sorted[sorted.len() * 9 / 10].max(1.0);
+        signature.extend(values.iter().map(|v| (1.0 - v / paper).clamp(0.0, 1.0)));
     }
-    // Without a number, the same values (allowing one misread cell).
-    let differing = last
-        .values
-        .iter()
-        .zip(&now.values)
-        .filter(|(a, b)| a != b)
-        .count();
-    differing <= 1
+    signature
+}
+
+/// Correlation of two ink signatures; blank cells on both count as alike.
+fn likeness(a: &[f32], b: &[f32]) -> f32 {
+    if a.len() != b.len() || a.is_empty() {
+        return 0.0;
+    }
+    let n = a.len() as f32;
+    let (ma, mb) = (a.iter().sum::<f32>() / n, b.iter().sum::<f32>() / n);
+    let (mut ab, mut aa, mut bb) = (0.0, 0.0, 0.0);
+    for (x, y) in a.iter().zip(b) {
+        let (x, y) = (x - ma, y - mb);
+        ab += x * y;
+        aa += x * x;
+        bb += y * y;
+    }
+    // Almost no ink: nothing written yet on either, or on one only.
+    const BLANK: f32 = 1e-3;
+    if aa / n < BLANK || bb / n < BLANK {
+        return if aa / n < BLANK && bb / n < BLANK {
+            1.0
+        } else {
+            0.0
+        };
+    }
+    ab / (aa.sqrt() * bb.sqrt())
 }
 
 fn sheet_id() -> String {
@@ -565,5 +605,67 @@ mod tests {
         assert!(similar_numbers("04451095728", "0445109572"));
         assert!(!similar_numbers("04451095728", "09111750633"));
         assert!(similar_numbers("", "09111750633"));
+    }
+
+    /// Signature of the cells of `image` moved by `(dx, dy)` and blurred.
+    fn signature(reader: &ExamReader, image: &RgbImage, dx: i64, dy: i64, blur: f32) -> Vec<f32> {
+        let rgb = frame_to_rgb(&frame(image, dx, dy)).unwrap();
+        let rgb = if blur > 0.0 {
+            image::imageops::blur(&rgb, blur)
+        } else {
+            rgb
+        };
+        let located = reader.analyzer.locate(&rgb, None);
+        let reading = reader.analyzer.read_at(&rgb, &located).unwrap();
+        ink_signature(&rgb, &reading)
+    }
+
+    #[test]
+    fn the_same_sheet_has_the_same_handwriting_and_another_does_not() {
+        let reader = reader();
+        let sheets = [sheet(0), sheet(1), sheet(2)];
+        for (index, image) in sheets.iter().enumerate() {
+            let still = signature(&reader, image, 0, 0, 0.0);
+            for (dx, dy, blur) in [(6, -4, 0.0), (-3, 5, 1.5), (2, 2, 3.0)] {
+                let moved = signature(&reader, image, dx, dy, blur);
+                let alike = likeness(&still, &moved);
+                assert!(
+                    alike >= SAME_INK + 0.1,
+                    "sheet {index} ({dx},{dy},{blur}): {alike}"
+                );
+            }
+            for (other, image) in sheets.iter().enumerate().skip(index + 1) {
+                let alike = likeness(&still, &signature(&reader, image, 0, 0, 0.0));
+                assert!(alike < SAME_INK - 0.2, "sheets {index}/{other}: {alike}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_sheet_swapped_in_place_is_saved_and_one_shown_again_is_not() {
+        let reader = reader();
+        let mut saved = 0;
+        let mut states = Vec::new();
+        let mut run = |frame: CameraFrame| {
+            let update = reader.scan_frame(frame).unwrap();
+            states.push(update.state);
+            saved += usize::from(update.sheet.is_some());
+        };
+        let (a, b) = (sheet(2), sheet(0));
+        // The next sheet laid on the previous one: never out of view.
+        for (dx, dy) in JITTER {
+            run(frame(&a, dx, dy));
+        }
+        for (dx, dy) in JITTER {
+            run(frame(&b, dx, dy));
+        }
+        // The first sheet shown again after the camera looked away.
+        for _ in 0..LOST_AFTER {
+            run(empty_frame());
+        }
+        for (dx, dy) in JITTER {
+            run(frame(&a, dx, dy));
+        }
+        assert_eq!(saved, 2, "{states:?}");
     }
 }

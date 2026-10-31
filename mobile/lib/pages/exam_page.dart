@@ -5,6 +5,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../app_state.dart';
+import '../course_students.dart';
 import '../excel_export.dart';
 import '../storage.dart';
 import 'detected_exam_page.dart';
@@ -319,6 +320,7 @@ class _SheetTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final sheet = record.result;
+    final number = sheetStudentNumber(sheet);
     final scores = sheet.cells
         .where((c) => c.field != 'Numara')
         .map((c) => '${c.field}: ${c.value ?? '–'}');
@@ -329,8 +331,11 @@ class _SheetTile extends StatelessWidget {
         ),
       ),
       child: ShadCard(
-        title: Text(sheet.studentName ?? 'Öğrenci belirlenemedi'),
-        description: Text(sheet.studentNumber ?? 'Numara kontrol edilmeli'),
+        // Without a roster the number written on the sheet is the student.
+        title: Text(sheet.studentName ?? number ?? 'Numara okunamadı'),
+        description: sheet.studentName != null && number != null
+            ? Text(number)
+            : null,
         trailing: record.confirmed
             ? const ShadBadge(child: Text('Onaylandı'))
             : const ShadBadge.outline(child: Text('Kontrol bekliyor')),

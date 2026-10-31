@@ -219,9 +219,9 @@ impl ExamReader {
             .map(|q| q.id.clone())
             .collect();
         let stand_in = ScoreValue::from_decimal(STAND_IN_MAXIMUM).map_err(|e| anyhow!("{e}"))?;
-        let readable = unknown_maximums
-            .iter()
-            .fold(imported.clone(), |exam, id| exam.with_maximum_score(id, stand_in));
+        let readable = unknown_maximums.iter().fold(imported.clone(), |exam, id| {
+            exam.with_maximum_score(id, stand_in)
+        });
         let exam_id = imported
             .metadata
             .course_code
@@ -598,17 +598,18 @@ impl ExamReader {
                         .map(|o| (o.earned_score, o.possible_score))
                         .unwrap_or((ScoreValue::ZERO, ScoreValue::ZERO));
                     let questions = || {
-                        self.exam.questions.values().filter(|q| {
-                            q.outcome_allocations.iter().any(|a| &a.outcome_id == id)
-                        })
+                        self.exam
+                            .questions
+                            .values()
+                            .filter(|q| q.outcome_allocations.iter().any(|a| &a.outcome_id == id))
                     };
                     let maximum_known = questions().all(|q| !self.unknown_maximums.contains(&q.id));
                     let complete = questions().all(|q| {
-                            session
-                                .canonical_question_results()
-                                .get(&q.id)
-                                .is_some_and(|r| r.score.is_some())
-                        });
+                        session
+                            .canonical_question_results()
+                            .get(&q.id)
+                            .is_some_and(|r| r.score.is_some())
+                    });
                     OutcomeResult {
                         id: id.as_str().to_owned(),
                         earned: earned.to_string(),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../app_state.dart';
+import '../course_students.dart';
 import '../diagnostic_share.dart';
 import '../review_labels.dart';
 import '../src/rust/api/reader.dart';
@@ -225,10 +226,16 @@ class _SheetReviewPageState extends State<SheetReviewPage> {
         padding: const EdgeInsets.all(16),
         children: [
           ShadCard(
-            title: Text(_result.studentName ?? 'Öğrenci belirlenemedi'),
-            description: Text(
-              _result.studentNumber ?? 'Numara listede bulunamadı',
+            title: Text(
+              _result.studentName ??
+                  sheetStudentNumber(_result) ??
+                  'Numara okunamadı',
             ),
+            description: _result.studentName != null
+                ? Text(sheetStudentNumber(_result) ?? '')
+                : widget.exam.rosterSize > 0
+                ? const Text('Numara listede bulunamadı')
+                : null,
             trailing: verified && _confirmedWithWarnings == null
                 ? const ShadBadge(child: Text('Onaylandı'))
                 : const ShadBadge.outline(child: Text('Kontrol bekliyor')),
