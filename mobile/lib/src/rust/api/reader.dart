@@ -247,12 +247,18 @@ class OutcomeResult {
   /// numbers then cover only the accepted questions.
   final bool complete;
 
+  /// False while the instructor has not given the maximum score of every
+  /// question of this PÇ (it is not printed on the sheet): `earned` counts,
+  /// `possible` is empty and `percent` is 0.
+  final bool maximumKnown;
+
   const OutcomeResult({
     required this.id,
     required this.earned,
     required this.possible,
     required this.percent,
     required this.complete,
+    required this.maximumKnown,
   });
 
   @override
@@ -261,7 +267,8 @@ class OutcomeResult {
       earned.hashCode ^
       possible.hashCode ^
       percent.hashCode ^
-      complete.hashCode;
+      complete.hashCode ^
+      maximumKnown.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -272,7 +279,8 @@ class OutcomeResult {
           earned == other.earned &&
           possible == other.possible &&
           percent == other.percent &&
-          complete == other.complete;
+          complete == other.complete &&
+          maximumKnown == other.maximumKnown;
 }
 
 /// One saved sheet as it goes into the Excel report.

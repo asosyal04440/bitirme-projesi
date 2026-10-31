@@ -1350,12 +1350,14 @@ impl SseDecode for crate::api::reader::OutcomeResult {
         let mut var_possible = <String>::sse_decode(deserializer);
         let mut var_percent = <f64>::sse_decode(deserializer);
         let mut var_complete = <bool>::sse_decode(deserializer);
+        let mut var_maximumKnown = <bool>::sse_decode(deserializer);
         return crate::api::reader::OutcomeResult {
             id: var_id,
             earned: var_earned,
             possible: var_possible,
             percent: var_percent,
             complete: var_complete,
+            maximum_known: var_maximumKnown,
         };
     }
 }
@@ -1890,6 +1892,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::reader::OutcomeResult {
             self.possible.into_into_dart().into_dart(),
             self.percent.into_into_dart().into_dart(),
             self.complete.into_into_dart().into_dart(),
+            self.maximum_known.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2443,6 +2446,7 @@ impl SseEncode for crate::api::reader::OutcomeResult {
         <String>::sse_encode(self.possible, serializer);
         <f64>::sse_encode(self.percent, serializer);
         <bool>::sse_encode(self.complete, serializer);
+        <bool>::sse_encode(self.maximum_known, serializer);
     }
 }
 

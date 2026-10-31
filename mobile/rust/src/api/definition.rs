@@ -5,6 +5,7 @@ use crate::api::exam::{info, ExamInfo};
 use exam_core::domain::{LearningOutcomeId, QuestionId, ScoreValue};
 use exam_import::{ColumnSpan, ExamMetadata, ImportWarning, ImportedExam, ImportedQuestion};
 
+#[derive(Clone)]
 pub struct DefinedQuestion {
     /// As printed, e.g. `S1`.
     pub printed_id: String,
@@ -18,6 +19,7 @@ pub struct DefinedQuestion {
     pub width: u32,
 }
 
+#[derive(Clone)]
 pub struct ExamDefinition {
     pub course: Option<String>,
     pub course_code: Option<String>,

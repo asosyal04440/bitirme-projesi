@@ -47,7 +47,9 @@ ExamDefinition definitionFromJson(Map<String, dynamic> j) => ExamDefinition(
   ],
 );
 
-/// A copy with the instructor's outcomes and maximum scores per question.
+/// A copy with the instructor's outcomes and maximum scores per question: a
+/// question missing from [outcomes] keeps what was read, one missing from
+/// [maximums] has no maximum score.
 ExamDefinition definitionWith(
   ExamDefinition d, {
   String? courseCode,
@@ -71,7 +73,7 @@ ExamDefinition definitionWith(
       DefinedQuestion(
         printedId: q.printedId,
         outcomes: outcomes[q.printedId] ?? q.outcomes,
-        maximum: maximums[q.printedId] ?? q.maximum,
+        maximum: maximums[q.printedId],
         left: q.left,
         width: q.width,
       ),

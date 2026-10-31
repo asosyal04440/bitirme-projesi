@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../app_state.dart';
 import '../excel_export.dart';
 import '../storage.dart';
+import 'detected_exam_page.dart';
 import 'live_scan_page.dart';
 import 'sheet_review_page.dart';
 
@@ -119,6 +120,18 @@ class _ExamPageState extends State<ExamPage> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Corrects what was read off the sheet or fills in the maximum scores;
+  /// the page then shows the updated exam.
+  Future<void> _details() async {
+    final updated = await Navigator.of(context).push<ExamEntry>(
+      MaterialPageRoute(builder: (_) => ExamDetailsPage(exam: widget.exam)),
+    );
+    if (updated == null || !mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => ExamPage(exam: updated)),
+    );
+  }
+
   void _toast(String title, String description) {
     if (!mounted) return;
     ShadToaster.of(context).show(
@@ -140,6 +153,11 @@ class _ExamPageState extends State<ExamPage> {
           style: theme.textTheme.large,
         ),
         actions: [
+          if (exam.stored.definition != null)
+            ShadIconButton.ghost(
+              icon: const Icon(LucideIcons.pencil, size: 18),
+              onPressed: _details,
+            ),
           ShadIconButton.ghost(
             icon: const Icon(LucideIcons.trash2, size: 18),
             onPressed: _delete,
@@ -162,6 +180,30 @@ class _ExamPageState extends State<ExamPage> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(exam.subtitle, style: theme.textTheme.muted),
+            if (exam.stored.definition != null && exam.detailsMissing) ...[
+              const SizedBox(height: 12),
+              ShadAlert(
+                icon: const Icon(LucideIcons.info),
+                title: Text(
+                  exam.maximumsMissing
+                      ? 'Tam puanlar girilmedi'
+                      : 'Sınav türü okunamadı',
+                ),
+                description: Text(
+                  exam.maximumsMissing
+                      ? 'Puanlar okunuyor ve PÇ’lere göre toplanıyor; yüzde '
+                            'için her sorunun tam puanını girin.'
+                      : 'Vize/final ağırlığı için sınav türünü seçin.',
+                ),
+              ),
+              const SizedBox(height: 8),
+              ShadButton.outline(
+                size: ShadButtonSize.sm,
+                leading: const Icon(LucideIcons.pencil, size: 14),
+                onPressed: _details,
+                child: const Text('Sınav bilgilerini düzenle'),
+              ),
+            ],
             const SizedBox(height: 16),
             ShadTabs<String>(
               value: 'sheets',
@@ -319,8 +361,11 @@ class _ResultsTab extends StatelessWidget {
         earned.putIfAbsent(outcome.id, () => 0);
         if (!outcome.complete) continue;
         earned[outcome.id] = earned[outcome.id]! + double.parse(outcome.earned);
-        possible[outcome.id] =
-            possible[outcome.id]! + double.parse(outcome.possible);
+        // Without the maximum scores only the points add up.
+        if (outcome.maximumKnown) {
+          possible[outcome.id] =
+              possible[outcome.id]! + double.parse(outcome.possible);
+        }
         counted[outcome.id] = (counted[outcome.id] ?? 0) + 1;
       }
     }
@@ -362,7 +407,9 @@ class _ResultsTab extends StatelessWidget {
                 width: 64,
                 child: Text(
                   possible[id]! == 0
-                      ? '–'
+                      ? (counted[id] ?? 0) == 0
+                            ? '–'
+                            : '${_round(earned[id]! / counted[id]!)} p'
                       : '%${(100 * earned[id]! / possible[id]!).toStringAsFixed(1)}',
                   textAlign: TextAlign.end,
                   style: theme.textTheme.p,
@@ -373,7 +420,10 @@ class _ResultsTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 56, top: 2, bottom: 12),
             child: Text(
-              '${counted[id] ?? 0} kâğıttan',
+              possible[id]! == 0 && (counted[id] ?? 0) > 0
+                  ? '${counted[id]} kâğıdın ortalama puanı; tam puanlar '
+                        'girilince yüzde olur'
+                  : '${counted[id] ?? 0} kâğıttan',
               style: theme.textTheme.muted,
             ),
           ),
@@ -381,4 +431,7 @@ class _ResultsTab extends StatelessWidget {
       ],
     );
   }
+
+  static String _round(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 }

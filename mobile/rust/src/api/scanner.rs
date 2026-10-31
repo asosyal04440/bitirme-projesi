@@ -286,7 +286,39 @@ mod tests {
             .collect();
         assert_eq!(outcomes, ["S1-PÇ2", "S2-PÇ1", "S3-PÇ3", "S4-PÇ2"]);
 
-        // The instructor enters the maximum scores; sheets are then read.
+        // Scanning starts at once: the scores are read and summed per PÇ
+        // before the instructor has entered the maximum scores.
+        let reader = ExamReader::from_definition(
+            template_json.clone(),
+            template_png.clone(),
+            read("models/digit-crnn-v4.onnx"),
+            definition.clone(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let mut saved = None;
+        for _ in 0..8 {
+            let update = reader.scan_frame(frame(SHEET)).unwrap();
+            if update.state == ScanState::Saved {
+                saved = update.sheet;
+                break;
+            }
+        }
+        let sheet = saved.expect("sheet saved without maximum scores");
+        let points: Vec<(String, String, bool)> = sheet
+            .outcomes
+            .iter()
+            .map(|o| (o.id.clone(), o.earned.clone(), o.maximum_known))
+            .collect();
+        for expected in [("PÇ1", "14.5"), ("PÇ2", "22"), ("PÇ3", "20")] {
+            assert!(
+                points.contains(&(expected.0.to_owned(), expected.1.to_owned(), false)),
+                "{points:?}"
+            );
+        }
+
+        // With the maximum scores entered, the PÇ get their percentages.
         let reader = ExamReader::from_definition(
             template_json,
             template_png,
@@ -326,5 +358,8 @@ mod tests {
         .map(|(f, v)| (f.to_owned(), Some(v.to_owned())));
         assert_eq!(values, expected);
         assert_eq!(sheet.outcomes.len(), 3);
+        let pc2 = sheet.outcomes.iter().find(|o| o.id == "PÇ2").unwrap();
+        assert!(pc2.maximum_known);
+        assert_eq!(pc2.possible, "45");
     }
 }

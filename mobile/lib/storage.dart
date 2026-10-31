@@ -237,6 +237,16 @@ class Storage {
     ];
   }
 
+  /// Stores what the instructor changed in an exam recognised on the sheet
+  /// (kind, PÇ, maximum scores).
+  Future<void> updateDefinition(String id, Map<String, dynamic> definition) =>
+      _db.update(
+        'exams',
+        {'definition': jsonEncode(definition)},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
   Future<void> deleteExam(String id) =>
       _db.delete('exams', where: 'id = ?', whereArgs: [id]);
 
@@ -350,6 +360,7 @@ Map<String, dynamic> sheetToJson(SheetResult r) => {
         'possible': o.possible,
         'percent': o.percent,
         'complete': o.complete,
+        'maximumKnown': o.maximumKnown,
       },
   ],
 };
@@ -393,6 +404,8 @@ SheetResult sheetFromJson(
         possible: o['possible'] as String,
         percent: (o['percent'] as num).toDouble(),
         complete: o['complete'] as bool,
+        // Sheets saved before maximum scores could be left out had them.
+        maximumKnown: o['maximumKnown'] as bool? ?? true,
       ),
   ],
 );

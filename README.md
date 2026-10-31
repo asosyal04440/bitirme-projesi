@@ -90,9 +90,12 @@ robust to shadows, blur and a slightly turned photo; tested on 2, 4, 6 and 10 qu
 name, the exam kind and term in the title, the group — are read with PaddleOCR's PP-OCRv4 mobile
 recognition model (`models/ppocr-v4-rec.onnx`, Apache-2.0, run with `tract` in Rust; 7 crops read in
 parallel, about 0.2 s per frame on a laptop). Fields are voted over consecutive frames and the exam is
-taken once each field agrees in two frames. The course is created from its code; the instructor only
-checks what was read and enters the maximum scores, which are not printed on the sheet. A sheet of an
-exam that is already saved goes straight to scanning. The Word import and the roster remain optional.
+taken once each field agrees in two frames. The course and exam are then saved as read and scanning
+goes on with the same sheet: its scores are read and summed per PÇ at once. The maximum scores are not
+printed on the sheet; until the instructor enters them (whenever convenient, from the scan screen or
+the exam page, together with any correction to what was read) the PÇ are shown in points, and entering
+them turns every saved sheet's PÇ into percentages. A sheet of an exam that is already saved goes
+straight to scanning. The Word import and the roster remain optional.
 
 **Live scanning.** "Kâğıt tara" keeps the camera open: the instructor shows one sheet after
 another, the Soru-PÇ table is outlined on the preview, and each sheet is saved with a green tick

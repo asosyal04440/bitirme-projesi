@@ -42,6 +42,13 @@ class ExamEntry {
         q.id: (q.maximumScore ?? stored.maximums[q.id])!,
   };
 
+  /// Some question has no maximum score yet (it is not printed on the
+  /// sheet): its PÇ are shown in points until the instructor enters it.
+  bool get maximumsMissing => info.questions.any((q) => q.maximumScore == null);
+
+  /// Exam details the instructor may still fill in after scanning started.
+  bool get detailsMissing => maximumsMissing || info.examKind == null;
+
   /// The reader loads the recognizer model, so it is built on first use.
   Future<ExamReader> reader() => _reader ??= _createReader(stored);
 
@@ -168,8 +175,8 @@ class AppState extends ChangeNotifier {
   }
 
   /// Saves an exam recognised on its first sheet, under its course (created
-  /// from the course code when new). `definition` carries the instructor's
-  /// outcomes and maximum scores.
+  /// from the course code when new). Scanning can start right away; what the
+  /// sheet does not say (maximum scores) is filled in later.
   Future<ExamEntry> createDetectedExam(ExamDefinition definition) async {
     final course = await _courseFor(
       definition.courseCode ?? 'DİĞER',
@@ -191,6 +198,69 @@ class AppState extends ChangeNotifier {
     course.exams.insert(0, entry);
     notifyListeners();
     return entry;
+  }
+
+  /// Applies what the instructor changed in a recognised exam (course code,
+  /// kind, group, PÇ, maximum scores) and works out the PÇ results of its
+  /// sheets again. Returns the exam as it is now.
+  Future<ExamEntry> updateDetectedExam(
+    ExamEntry exam,
+    ExamDefinition definition,
+  ) async {
+    final old = exam.stored;
+    final from = courses.firstWhere((c) => c.exams.contains(exam));
+    final to = await _courseFor(
+      definition.courseCode ?? from.code,
+      definition.courseName,
+    );
+    final stored = StoredExam(
+      id: old.id,
+      courseId: to.id,
+      createdAt: old.createdAt,
+      docx: old.docx,
+      maximums: old.maximums,
+      roster: old.roster,
+      definition: definitionToJson(definition),
+    );
+    final updated = ExamEntry(stored: stored, info: await examInfo(stored));
+    final reader = await updated.reader();
+    for (final record in exam.sheets) {
+      final redone = await reader.confirmSheet(
+        sheetId: record.id,
+        values: [
+          for (final c in record.result.cells)
+            if (record.confirmed || c.accepted)
+              FieldValue(field: c.field, value: c.value, region: c.region),
+        ],
+      );
+      final r = record.result;
+      // Only the PÇ results change; what was read stays as it was.
+      final result = SheetResult(
+        sheetId: r.sheetId,
+        pageFound: r.pageFound,
+        studentNumber: r.studentNumber,
+        studentName: r.studentName,
+        cells: r.cells,
+        issues: r.issues,
+        outcomes: redone.outcomes,
+        requiresReview: r.requiresReview,
+      );
+      final again = SheetRecord(
+        id: record.id,
+        createdAt: record.createdAt,
+        confirmed: record.confirmed,
+        result: result,
+      );
+      await storage.saveSheet(stored.id, again);
+      updated.sheets.add(again);
+    }
+    await storage.updateDefinition(stored.id, stored.definition!);
+    if (to != from) await storage.moveExam(stored.id, to.id);
+    final index = from.exams.indexOf(exam);
+    from.exams.removeAt(index);
+    to.exams.insert(to == from ? index : 0, updated);
+    notifyListeners();
+    return updated;
   }
 
   SheetScanner? _scanner;

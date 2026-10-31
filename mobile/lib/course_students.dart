@@ -73,8 +73,9 @@ class StudentSummary {
       if (exam == null) continue;
       for (final o in exam.outcomes) {
         final total = totals.putIfAbsent(o.id, () => OutcomeTotal(o.id));
-        total.add(o.percent, examWeights[slot]!);
-        total.complete &= o.complete;
+        // No percentage before the exam's maximum scores are entered.
+        if (o.maximumKnown) total.add(o.percent, examWeights[slot]!);
+        total.complete &= o.complete && o.maximumKnown;
       }
     }
     for (final total in totals.values) {

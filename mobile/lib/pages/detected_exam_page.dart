@@ -4,40 +4,36 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../app_state.dart';
 import '../definition_json.dart';
-import '../src/rust/api/definition.dart';
-import 'live_scan_page.dart';
 
 /// "PÇ2", "pc 2", "2" → "PÇ2"; several separated by commas or spaces.
 List<String> parseOutcomes(String text) => [
   for (final match in RegExp(r'\d+').allMatches(text)) 'PÇ${match.group(0)}',
 ];
 
-/// An exam recognised on its first sheet: what was read is shown for a
-/// check, and only what the sheet does not say (maximum scores) is asked.
-class DetectedExamPage extends StatefulWidget {
-  const DetectedExamPage({super.key, required this.definition});
+/// What was read off the sheet of an exam recognised there, to correct, and
+/// what the sheet does not say (maximum scores) to fill in. None of it holds
+/// up scanning: until the maximum scores are given, PÇ are shown in points.
+/// Pops with the updated exam.
+class ExamDetailsPage extends StatefulWidget {
+  const ExamDetailsPage({super.key, required this.exam});
 
-  final ExamDefinition definition;
+  final ExamEntry exam;
 
   @override
-  State<DetectedExamPage> createState() => _DetectedExamPageState();
+  State<ExamDetailsPage> createState() => _ExamDetailsPageState();
 }
 
-class _DetectedExamPageState extends State<DetectedExamPage> {
-  late final _code = TextEditingController(
-    text: widget.definition.courseCode ?? '',
-  );
-  late final _group = TextEditingController(
-    text: widget.definition.group ?? '',
-  );
-  late String? _kind = widget.definition.examKind;
+class _ExamDetailsPageState extends State<ExamDetailsPage> {
+  late final _definition = definitionFromJson(widget.exam.stored.definition!);
+  late final _code = TextEditingController(text: _definition.courseCode ?? '');
+  late final _group = TextEditingController(text: _definition.group ?? '');
+  late String? _kind = _definition.examKind;
   late final Map<String, TextEditingController> _outcomes = {
-    for (final q in widget.definition.questions)
-      q.printedId: TextEditingController(text: q.outcomes.join(', '))
-        ..addListener(_changed),
+    for (final q in _definition.questions)
+      q.printedId: TextEditingController(text: q.outcomes.join(', ')),
   };
   late final Map<String, TextEditingController> _maximums = {
-    for (final q in widget.definition.questions)
+    for (final q in _definition.questions)
       q.printedId: TextEditingController(text: q.maximum ?? '')
         ..addListener(_changed),
   };
@@ -55,41 +51,44 @@ class _DetectedExamPageState extends State<DetectedExamPage> {
     super.dispose();
   }
 
-  bool get _complete =>
-      normalizeCourseCode(_code.text).isNotEmpty &&
-      _kind != null &&
-      _outcomes.values.every((c) => parseOutcomes(c.text).isNotEmpty) &&
-      _maximums.values.every((c) => c.text.trim().isNotEmpty);
+  static String _number(String text) => text.trim().replaceAll(',', '.');
 
-  Future<void> _start() async {
+  /// Entered maximum scores must be positive numbers; blank ones may wait.
+  bool get _valid => _maximums.values.every((c) {
+    final text = _number(c.text);
+    return text.isEmpty || (double.tryParse(text) ?? 0) > 0;
+  });
+
+  Future<void> _save() async {
     setState(() => _busy = true);
     try {
-      final exam = await appState.createDetectedExam(
+      final code = normalizeCourseCode(_code.text);
+      final group = _group.text.trim().toUpperCase();
+      final updated = await appState.updateDetectedExam(
+        widget.exam,
         definitionWith(
-          widget.definition,
-          courseCode: normalizeCourseCode(_code.text),
+          _definition,
+          courseCode: code.isEmpty ? null : code,
           examKind: _kind,
-          group: _group.text.trim().isEmpty
-              ? null
-              : _group.text.trim().toUpperCase(),
+          group: group.isEmpty ? null : group,
           outcomes: {
             for (final e in _outcomes.entries)
-              e.key: parseOutcomes(e.value.text),
+              if (parseOutcomes(e.value.text).isNotEmpty)
+                e.key: parseOutcomes(e.value.text),
           },
           maximums: {
-            for (final e in _maximums.entries) e.key: e.value.text.trim(),
+            for (final e in _maximums.entries)
+              if (_number(e.value.text).isNotEmpty)
+                e.key: _number(e.value.text),
           },
         ),
       );
-      if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => LiveScanPage(exam: exam)),
-      );
+      if (mounted) Navigator.of(context).pop(updated);
     } catch (error) {
       if (!mounted) return;
       ShadToaster.of(context).show(
         ShadToast.destructive(
-          title: const Text('Sınav kaydedilemedi'),
+          title: const Text('Kaydedilemedi'),
           description: Text('$error'),
         ),
       );
@@ -101,27 +100,24 @@ class _DetectedExamPageState extends State<DetectedExamPage> {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    final d = widget.definition;
+    final d = _definition;
     final details = [
-      d.examKind,
       if (d.group != null) 'Grup ${d.group}',
       [d.academicYear, d.term].whereType<String>().join(' '),
-    ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+    ].where((s) => s.isNotEmpty).join(' · ');
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         backgroundColor: theme.colorScheme.background,
         surfaceTintColor: Colors.transparent,
-        title: Text('Sınav tanındı', style: theme.textTheme.large),
+        title: Text('Sınav bilgileri', style: theme.textTheme.large),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           ShadCard(
             title: Text(d.courseName ?? d.course ?? 'Ders'),
-            description: Text(
-              details.isEmpty ? 'Sınav türü okunamadı' : details,
-            ),
+            description: details.isEmpty ? null : Text(details),
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Row(
@@ -174,8 +170,9 @@ class _DetectedExamPageState extends State<DetectedExamPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Kâğıttan okunan soru–PÇ eşleşmelerini kontrol edin ve her sorunun '
-            'tam puanını girin (tam puanlar kâğıtta yazmıyor).',
+            'Soru–PÇ eşleşmeleri kâğıttan okundu. Tam puanlar kâğıtta '
+            'yazmıyor: girilene kadar PÇ’ler puan olarak gösterilir, '
+            'girilince yüzdeler hesaplanır.',
             style: theme.textTheme.muted,
           ),
           const SizedBox(height: 12),
@@ -214,21 +211,10 @@ class _DetectedExamPageState extends State<DetectedExamPage> {
           const SizedBox(height: 24),
           ShadButton(
             width: double.infinity,
-            enabled: _complete && !_busy,
-            leading: const Icon(LucideIcons.scanLine, size: 16),
-            onPressed: _start,
-            child: Text(_busy ? 'Hazırlanıyor…' : 'Taramaya başla'),
+            enabled: _valid && !_busy,
+            onPressed: _save,
+            child: Text(_busy ? 'Kaydediliyor…' : 'Kaydet'),
           ),
-          if (!_complete)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Devam etmek için sınav türünü, her sorunun PÇ’sini ve tam '
-                'puanını girin.',
-                style: theme.textTheme.muted,
-                textAlign: TextAlign.center,
-              ),
-            ),
         ],
       ),
     );

@@ -114,6 +114,10 @@ class _StudentCard extends StatelessWidget {
 
     Widget outcomeOf(StudentExam exam, String id) {
       final o = exam.outcomes.where((o) => o.id == id).firstOrNull;
+      // Points until the exam's maximum scores are entered.
+      if (o != null && o.complete && !o.maximumKnown) {
+        return cell('${o.earned} p', style: theme.textTheme.muted);
+      }
       return value(o?.percent, complete: o?.complete ?? true);
     }
 

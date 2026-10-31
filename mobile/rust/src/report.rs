@@ -116,7 +116,7 @@ pub(crate) fn workbook(
         column += 1;
         for outcome in &outcome_ids {
             match sheet.outcomes.iter().find(|o| o.id == outcome.as_str()) {
-                Some(o) if o.complete => {
+                Some(o) if o.complete && o.maximum_known => {
                     grades.write_number_with_format(row, column, o.percent / 100.0, &f.percent)?
                 }
                 _ => grades.write_string_with_format(row, column, "eksik", &f.muted)?,

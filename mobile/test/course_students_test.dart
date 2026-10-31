@@ -61,6 +61,7 @@ SheetRecord sheet(
           possible: possible,
           percent: double.parse(earned) / double.parse(possible) * 100,
           complete: complete,
+          maximumKnown: true,
         ),
     ],
     requiresReview: false,

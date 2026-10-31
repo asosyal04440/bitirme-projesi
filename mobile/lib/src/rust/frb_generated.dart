@@ -1185,14 +1185,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   OutcomeResult dco_decode_outcome_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return OutcomeResult(
       id: dco_decode_String(arr[0]),
       earned: dco_decode_String(arr[1]),
       possible: dco_decode_String(arr[2]),
       percent: dco_decode_f_64(arr[3]),
       complete: dco_decode_bool(arr[4]),
+      maximumKnown: dco_decode_bool(arr[5]),
     );
   }
 
@@ -1854,12 +1855,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_possible = sse_decode_String(deserializer);
     var var_percent = sse_decode_f_64(deserializer);
     var var_complete = sse_decode_bool(deserializer);
+    var var_maximumKnown = sse_decode_bool(deserializer);
     return OutcomeResult(
       id: var_id,
       earned: var_earned,
       possible: var_possible,
       percent: var_percent,
       complete: var_complete,
+      maximumKnown: var_maximumKnown,
     );
   }
 
@@ -2471,6 +2474,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.possible, serializer);
     sse_encode_f_64(self.percent, serializer);
     sse_encode_bool(self.complete, serializer);
+    sse_encode_bool(self.maximumKnown, serializer);
   }
 
   @protected

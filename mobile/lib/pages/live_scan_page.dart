@@ -15,6 +15,7 @@ import '../excel_export.dart';
 import '../src/rust/api/camera.dart';
 import '../src/rust/api/reader.dart';
 import '../storage.dart';
+import 'detected_exam_page.dart';
 import 'sheet_review_page.dart';
 
 /// Sheets are read straight from the camera, one after another: the
@@ -102,6 +103,24 @@ class _LiveScanPageState extends State<LiveScanPage>
     unawaited(writeExamExcel(widget.exam));
   }
 
+  /// The exam details the sheet does not give (maximum scores, a kind that
+  /// could not be read); scanning resumes with them afterwards.
+  Future<void> _openDetails() async {
+    await _feed.stop();
+    if (!mounted) return;
+    final updated = await Navigator.of(context).push<ExamEntry>(
+      MaterialPageRoute(builder: (_) => ExamDetailsPage(exam: widget.exam)),
+    );
+    if (!mounted) return;
+    if (updated == null) {
+      await _start();
+      return;
+    }
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => LiveScanPage(exam: updated)),
+    );
+  }
+
   Future<void> _shareExcel() async {
     final file = await writeExamExcel(widget.exam);
     await SharePlus.instance.share(
@@ -173,6 +192,14 @@ class _LiveScanPageState extends State<LiveScanPage>
               alignment: Alignment.bottomCenter,
               child: _StatusPanel(
                 update: _update,
+                details: widget.exam.stored.definition == null
+                    ? null
+                    : widget.exam.maximumsMissing
+                    ? 'Tam puanları gir'
+                    : widget.exam.info.examKind == null
+                    ? 'Sınav türünü seç'
+                    : null,
+                onDetails: _openDetails,
                 last: _saved.isEmpty ? null : _saved.first,
                 onOpenLast: _saved.isEmpty
                     ? null
@@ -381,9 +408,19 @@ class _Tick extends StatelessWidget {
 }
 
 class _StatusPanel extends StatelessWidget {
-  const _StatusPanel({required this.update, this.last, this.onOpenLast});
+  const _StatusPanel({
+    required this.update,
+    this.details,
+    this.onDetails,
+    this.last,
+    this.onOpenLast,
+  });
 
   final ScanUpdate? update;
+
+  /// Label of the button to the exam details still missing, if any.
+  final String? details;
+  final VoidCallback? onDetails;
   final SheetRecord? last;
   final VoidCallback? onOpenLast;
 
@@ -453,12 +490,42 @@ class _StatusPanel extends StatelessWidget {
                   ],
                 ),
               ),
+              if (last.result.outcomes.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _outcomeSummary(last.result),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ],
+            if (details != null) ...[
+              const SizedBox(height: 10),
+              ShadButton.secondary(
+                size: ShadButtonSize.sm,
+                leading: const Icon(LucideIcons.pencil, size: 14),
+                onPressed: onDetails,
+                child: Text(details!),
+              ),
             ],
           ],
         ),
       ),
     );
   }
+
+  /// "PÇ1 23 puan · PÇ2 24 puan", or "PÇ1 %77 · PÇ2 %53" once the maximum
+  /// scores are known.
+  static String _outcomeSummary(SheetResult sheet) => [
+    for (final o in sheet.outcomes)
+      o.maximumKnown
+          ? '${o.id} %${o.percent.toStringAsFixed(0)}'
+          : '${o.id} ${o.earned} puan',
+  ].join(' · ');
 
   /// "04451095728 · S1 13 · S2 23 · S3 23 · S4 11 · Not 70"
   static String _summary(SheetResult sheet) => [

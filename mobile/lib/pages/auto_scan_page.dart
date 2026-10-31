@@ -7,13 +7,11 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../app_state.dart';
 import '../camera_feed.dart';
 import '../src/rust/api/scanner.dart';
-import 'detected_exam_page.dart';
 import 'live_scan_page.dart';
 
 /// Starting point without any set-up: the camera opens, the instructor shows
 /// the first sheet and the exam is recognised from it (course, kind, the
-/// Soru-PÇ table). A known exam goes straight to scanning; a new one is
-/// confirmed once.
+/// Soru-PÇ table); scanning then goes on with that sheet's scores.
 class AutoScanPage extends StatefulWidget {
   const AutoScanPage({super.key});
 
@@ -72,13 +70,29 @@ class _AutoScanPageState extends State<AutoScanPage>
     HapticFeedback.mediumImpact();
     await _feed.stop();
     if (!mounted) return;
-    final known = appState.examFor(definition);
+    // A new exam is saved as read; scanning goes on with the same sheet,
+    // whose scores are read next. What the sheet does not say (maximum
+    // scores) is filled in when the instructor gets to it.
+    final ExamEntry exam;
+    try {
+      exam =
+          appState.examFor(definition) ??
+          await appState.createDetectedExam(definition);
+    } catch (error) {
+      if (!mounted) return;
+      ShadToaster.of(context).show(
+        ShadToast.destructive(
+          title: const Text('Sınav kaydedilemedi'),
+          description: Text('$error'),
+        ),
+      );
+      _done = false;
+      await _start();
+      return;
+    }
+    if (!mounted) return;
     await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => known != null
-            ? LiveScanPage(exam: known)
-            : DetectedExamPage(definition: definition),
-      ),
+      MaterialPageRoute<void>(builder: (_) => LiveScanPage(exam: exam)),
     );
   }
 
@@ -168,8 +182,8 @@ class _AutoScanPageState extends State<AutoScanPage>
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Ders, sınav ve soru–PÇ eşleşmeleri kâğıttan okunur; '
-                        'Word dosyası gerekmez.',
+                        'Ders, soru–PÇ eşleşmeleri ve puanlar kâğıttan '
+                        'okunur; Word dosyası gerekmez.',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                     ],

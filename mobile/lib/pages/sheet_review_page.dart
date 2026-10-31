@@ -403,12 +403,18 @@ class _OutcomeRow extends StatelessWidget {
             width: 56,
             child: Text(outcome.id, style: theme.textTheme.large),
           ),
-          Expanded(child: ShadProgress(value: outcome.percent / 100)),
+          Expanded(
+            child: outcome.maximumKnown
+                ? ShadProgress(value: outcome.percent / 100)
+                : Text('tam puan girilmedi', style: theme.textTheme.muted),
+          ),
           SizedBox(
             width: 96,
             child: outcome.complete
                 ? Text(
-                    '${outcome.earned}/${outcome.possible}',
+                    outcome.maximumKnown
+                        ? '${outcome.earned}/${outcome.possible}'
+                        : '${outcome.earned} puan',
                     textAlign: TextAlign.end,
                     style: theme.textTheme.p,
                   )

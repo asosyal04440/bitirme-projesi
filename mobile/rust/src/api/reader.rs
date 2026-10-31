@@ -69,6 +69,10 @@ pub struct OutcomeResult {
     /// False while some question of this PÇ has no accepted score yet; the
     /// numbers then cover only the accepted questions.
     pub complete: bool,
+    /// False while the instructor has not given the maximum score of every
+    /// question of this PÇ (it is not printed on the sheet): `earned` counts,
+    /// `possible` is empty and `percent` is 0.
+    pub maximum_known: bool,
 }
 
 pub struct SheetResult {
@@ -96,6 +100,9 @@ pub struct ExamReader {
     pub(crate) analyzer: TemplateSheetAnalyzer,
     imported: ImportedExam,
     exam: Exam,
+    /// Questions read with a stand-in maximum because the instructor has not
+    /// entered theirs yet.
+    unknown_maximums: Vec<QuestionId>,
     roster: Option<StudentRoster>,
     sessions: Mutex<InMemorySessionRepository>,
     pub(crate) live: Mutex<crate::live::LiveState>,
@@ -202,12 +209,25 @@ impl ExamReader {
                 .map_err(|e| anyhow!("{}: {e}", entry.question))?;
             imported = imported.with_maximum_score(&id, value);
         }
+        // Scores are read and summed per PÇ before the maximum scores are
+        // known; a stand-in lets the sheet be read (and checked against the
+        // total) in the meantime.
+        let unknown_maximums: Vec<QuestionId> = imported
+            .questions
+            .iter()
+            .filter(|q| q.maximum_score.is_none())
+            .map(|q| q.id.clone())
+            .collect();
+        let stand_in = ScoreValue::from_decimal(STAND_IN_MAXIMUM).map_err(|e| anyhow!("{e}"))?;
+        let readable = unknown_maximums
+            .iter()
+            .fold(imported.clone(), |exam, id| exam.with_maximum_score(id, stand_in));
         let exam_id = imported
             .metadata
             .course_code
             .clone()
             .unwrap_or_else(|| "exam".to_owned());
-        let exam = imported
+        let exam = readable
             .to_exam(
                 &exam_id,
                 imported.metadata.course.as_deref().unwrap_or("Sınav"),
@@ -219,7 +239,7 @@ impl ExamReader {
         let analyzer = TemplateSheetAnalyzer::for_imported_exam(
             template,
             recognizer,
-            &imported,
+            &readable,
             ModelVersion::new("digit-crnn-v4", "4").map_err(|e| anyhow!("{e}"))?,
         )
         .map_err(|e| anyhow!("{e}"))?;
@@ -245,6 +265,7 @@ impl ExamReader {
             analyzer,
             imported,
             exam,
+            unknown_maximums,
             roster,
             sessions: Mutex::new(InMemorySessionRepository::default()),
             live: Mutex::new(crate::live::LiveState::default()),
@@ -576,12 +597,13 @@ impl ExamReader {
                     let (earned, possible) = accepted
                         .map(|o| (o.earned_score, o.possible_score))
                         .unwrap_or((ScoreValue::ZERO, ScoreValue::ZERO));
-                    let complete = self
-                        .exam
-                        .questions
-                        .values()
-                        .filter(|q| q.outcome_allocations.iter().any(|a| &a.outcome_id == id))
-                        .all(|q| {
+                    let questions = || {
+                        self.exam.questions.values().filter(|q| {
+                            q.outcome_allocations.iter().any(|a| &a.outcome_id == id)
+                        })
+                    };
+                    let maximum_known = questions().all(|q| !self.unknown_maximums.contains(&q.id));
+                    let complete = questions().all(|q| {
                             session
                                 .canonical_question_results()
                                 .get(&q.id)
@@ -590,9 +612,18 @@ impl ExamReader {
                     OutcomeResult {
                         id: id.as_str().to_owned(),
                         earned: earned.to_string(),
-                        possible: possible.to_string(),
-                        percent: percent(earned, possible),
+                        possible: if maximum_known {
+                            possible.to_string()
+                        } else {
+                            String::new()
+                        },
+                        percent: if maximum_known {
+                            percent(earned, possible)
+                        } else {
+                            0.0
+                        },
                         complete,
+                        maximum_known,
                     }
                 })
                 .collect(),
@@ -626,6 +657,10 @@ pub struct ReportSheet {
     /// True once the instructor confirmed the sheet.
     pub confirmed: bool,
 }
+
+/// Maximum used for a question until the instructor enters its own; high
+/// enough not to refuse any score written on a sheet.
+const STAND_IN_MAXIMUM: &str = "100";
 
 pub(crate) const NUMBER_FIELD: &str = "Numara";
 pub(crate) const TOTAL_FIELD: &str = "Not";
@@ -866,16 +901,18 @@ mod tests {
     }
 
     #[test]
-    fn an_exam_with_missing_points_is_refused() {
+    fn an_exam_with_missing_points_is_read_and_still_asks_for_them() {
         let read = |p: &str| std::fs::read(repo(p)).unwrap();
-        let result = ExamReader::new(
+        let reader = ExamReader::new(
             String::from_utf8(read("tools/synthetic/templates/inonu-final-a.json")).unwrap(),
             read("tools/synthetic/templates/inonu-final-a.png"),
             read("models/digit-crnn-v4.onnx"),
             read("tools/synthetic/templates/inonu-final-a.docx"),
             Vec::new(),
             Vec::new(),
-        );
-        assert!(result.is_err());
+        )
+        .unwrap();
+        // The Word file gives S1 and S2; S3 and S4 are still to be entered.
+        assert!(!reader.exam_info().ready);
     }
 }

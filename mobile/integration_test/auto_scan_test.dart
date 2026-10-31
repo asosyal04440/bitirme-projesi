@@ -7,6 +7,8 @@ import 'package:sinav_okuyucu/app_state.dart';
 import 'package:sinav_okuyucu/definition_json.dart';
 import 'package:sinav_okuyucu/src/rust/api/camera.dart';
 import 'package:sinav_okuyucu/src/rust/api/definition.dart';
+import 'package:sinav_okuyucu/src/rust/api/reader.dart';
+import 'package:sinav_okuyucu/storage.dart';
 import 'package:sinav_okuyucu/src/rust/frb_generated.dart';
 
 /// A clean filled sheet (synthetic) as an RGBA camera frame.
@@ -67,14 +69,9 @@ void main() {
     );
     expect(appState.examFor(definition), isNull);
 
-    // The instructor enters only the maximum scores.
-    final exam = await appState.createDetectedExam(
-      definitionWith(
-        definition,
-        outcomes: const {},
-        maximums: const {'S1': '20', 'S2': '30', 'S3': '25', 'S4': '25'},
-      ),
-    );
+    // Scanning starts at once, before any maximum score is entered.
+    var exam = await appState.createDetectedExam(definition);
+    expect(exam.maximumsMissing, isTrue);
     expect(appState.courses.map((c) => c.code), contains('BİLM374'));
     expect(appState.examFor(definition)?.id, exam.id);
 
@@ -97,11 +94,40 @@ void main() {
         'Not': '56.5',
       },
     );
+    // The scores are summed per PÇ right away, in points.
+    String points(SheetResult sheet, String id) {
+      final o = sheet.outcomes.singleWhere((o) => o.id == id);
+      return o.maximumKnown ? '${o.earned}/${o.possible}' : o.earned;
+    }
+
+    expect(points(saved.sheet!, 'PÇ2'), '22');
+    await appState.saveSheet(
+      exam,
+      SheetRecord(
+        id: saved.sheet!.sheetId,
+        createdAt: DateTime.now(),
+        confirmed: saved.verified,
+        result: saved.sheet!,
+      ),
+    );
+
+    // The maximum scores entered later turn the points into percentages.
+    exam = await appState.updateDetectedExam(
+      exam,
+      definitionWith(
+        definition,
+        outcomes: const {},
+        maximums: const {'S1': '20', 'S2': '30', 'S3': '25', 'S4': '25'},
+      ),
+    );
+    expect(exam.maximumsMissing, isFalse);
+    expect(points(exam.sheets.single.result, 'PÇ2'), '22/45');
 
     // The exam survives a restart, stored without a Word file.
     await appState.load();
     final reloaded = appState.examFor(definition)!;
     expect(reloaded.stored.docx, isEmpty);
+    expect(points(reloaded.sheets.single.result, 'PÇ2'), '22/45');
     expect(reloaded.info.questions.length, 4);
     expect((await reloaded.reader()).examInfo().courseCode, 'BİLM374');
 
